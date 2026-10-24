@@ -1,0 +1,1896 @@
+--[[ ============================================================
+      VERSACE  |  URBAN RELOAD  |  menu by djinnuhq
+      Systeme de cle + Stream Proof + Langue FR/ES/EN/RU
+============================================================ ]]--
+
+local Players      = game:GetService("Players")
+local RunService   = game:GetService("RunService")
+local UIS          = game:GetService("UserInputService")
+local Lighting     = game:GetService("Lighting")
+local HttpService  = game:GetService("HttpService")
+local CoreGui      = game:GetService("CoreGui")
+local VU           = game:GetService("VirtualUser")
+local LP           = Players.LocalPlayer
+local Camera       = workspace.CurrentCamera
+
+local conns = {}
+local function keep(c) conns[#conns+1] = c; return c end
+keep(workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(function()
+	Camera = workspace.CurrentCamera
+end))
+
+local Draw
+pcall(function() local t = Drawing.new("Line"); t:Remove(); Draw = Drawing end)
+local hasMouseRel = (typeof(mousemoverel) == "function")
+
+local COLORS = {
+	Green=Color3.fromRGB(0,255,130), Blue=Color3.fromRGB(61,126,255), Red=Color3.fromRGB(255,70,70),
+	Yellow=Color3.fromRGB(255,210,60), White=Color3.fromRGB(255,255,255), Purple=Color3.fromRGB(180,110,255),
+}
+
+local S = {
+	aim = {on=false, hold=true, key=Enum.UserInputType.MouseButton2, part="Head", mode="Mouse",
+	       fov=130, maxDist=0, randomPart=false, smooth=3, wall=true, team=true,
+	       circle=true, circleCol="Blue", hitchance=false, hitchanceVal=70},
+	silent = {on=false, part="Head", fov=130, maxDist=0, randomPart=false, wall=true, team=true,
+	          chance=100, hookRay=true, hookSPR=false},
+	esp = {on=false, box=true, name=true, hp=true, dist=true, tracer=true, cham=true,
+	       skeleton=false, boneThick=1, dot=false, team=false, healthCol=true, max=1500,
+	       col="Green", chamTrans=0.65, textSize=13,
+	       minimap=false, minimapSize=160, minimapZoom=400},
+	world = {bright=false, clock=14, fog=false, shadows=false},
+	cam = {fov=70, third=false},
+	mov = {fly=false, flyspd=80, noclip=false, spd=false, speed=40, jmp=false, jump=60,
+	       infjump=false, hb=false, hbsize=7},
+	misc = {watermark=true, antiafk=true, menuKey=Enum.KeyCode.Insert,
+	        aimWarn=false, warnDist=250, warnAngle=25, streamproof=false,
+	        streamproofKey=Enum.KeyCode.K},
+	theme = {color="Rouge", effect="Aucun", density=35},
+	lang = "fr",
+}
+local origLight = {Brightness=Lighting.Brightness, ClockTime=Lighting.ClockTime, FogEnd=Lighting.FogEnd,
+	Ambient=Lighting.Ambient, OutdoorAmbient=Lighting.OutdoorAmbient, GlobalShadows=Lighting.GlobalShadows}
+
+local kbListening = false
+local currentCat = 1
+local langRefreshHook = nil
+local catLabelRefs = {}
+
+--// LANGUES
+local TR = {
+	fr = {},
+	en = {
+		["Aimbot"]="Aimbot", ["Visuals"]="Visuals", ["Themes"]="Themes", ["Misc"]="Misc",
+		["Configs"]="Configs", ["Langue"]="Language", ["Joueurs"]="Players", ["Monde"]="World",
+		["Deplacements"]="Movement", ["Menu"]="Menu", ["Config"]="Config", ["Silent Aim"]="Silent Aim",
+		["COMBAT"]="COMBAT", ["VISUELS"]="VISUALS", ["JEU"]="GAME", ["SYSTEME"]="SYSTEM",
+		["Maintien de la touche"]="Hold key", ["Touche"]="Key", ["Mode de visee"]="Aim mode",
+		["Partie visee"]="Hit part", ["Distance max (0 = illimite)"]="Max distance (0 = infinite)",
+		["Lissage"]="Smooth", ["Activer le hitchance"]="Enable hitchance",
+		["Chance de lock (%)"]="Lock chance (%)", ["Comportement"]="Behaviour",
+		["Ne pas lock a travers les murs"]="Don't lock through walls",
+		["Tir aleatoire sur le corps"]="Random body part", ["Ignorer les coequipiers"]="Ignore teammates",
+		["Cercle FOV"]="FOV circle", ["Couleur du cercle"]="Circle color",
+		["Chance de toucher (%)"]="Hit chance (%)", ["Boites"]="Boxes", ["Noms"]="Names",
+		["Distance"]="Distance", ["Barre de vie"]="Health bar", ["Lignes (tracers)"]="Tracers",
+		["Chams (Highlight)"]="Chams", ["Point sur la tete"]="Head dot",
+		["Couleur selon la vie"]="Health-based color", ["Distance max"]="Max distance",
+		["Taille du texte"]="Text size", ["Transparence chams"]="Chams transparency",
+		["Couleur ESP"]="ESP color", ["Squelette"]="Skeleton",
+		["Epaisseur du squelette"]="Skeleton thickness", ["Mini-map"]="Minimap", ["Taille"]="Size",
+		["Zoom (studs affiches)"]="Zoom (studs shown)", ["Alerte viseur"]="Aim warning",
+		["Distance d'alerte"]="Warning distance", ["Angle d'alerte (degres)"]="Warning angle (deg)",
+		["Fullbright"]="Fullbright", ["Heure"]="Time", ["Desactiver le brouillard"]="Disable fog",
+		["Desactiver les ombres"]="Disable shadows", ["Camera"]="Camera", ["FOV camera"]="Camera FOV",
+		["Troisieme personne"]="Third person", ["Couleur du menu"]="Menu color",
+		["Effet de particules"]="Particle effect", ["Densite des particules"]="Particle density",
+		["Themes rapides"]="Quick themes",
+		["Neige : petits points blancs qui tombent lentement.  Sakura : petales roses.  Pluie, Feuilles, Cendres, Etoiles, Or, Coeurs."]="Snow: small white dots. Sakura: pink petals. Rain, Leaves, Ashes, Stars, Gold, Hearts.",
+		["Fly (WASD/Space/Ctrl)"]="Fly (WASD/Space/Ctrl)", ["Vitesse de vol"]="Fly speed",
+		["Speed hack"]="Speed hack", ["Vitesse"]="Speed", ["Jump hack"]="Jump hack",
+		["Puissance de saut"]="Jump power", ["Saut infini"]="Infinite jump",
+		["Hitbox expander"]="Hitbox expander", ["Taille hitbox"]="Hitbox size",
+		["Teleportation"]="Teleport", ["TP -> joueur le plus proche"]="TP to nearest player",
+		["TP -> curseur"]="TP to cursor", ["Touche du menu"]="Menu key", ["Watermark"]="Watermark",
+		["Anti-AFK"]="Anti-AFK", ["Reset personnage"]="Reset character",
+		["Rejoindre le serveur"]="Rejoin server", ["Decharger"]="Unload",
+		["Decharger le cheat"]="Unload cheat", ["Sauvegarde"]="Saves", ["Nom du fichier"]="File name",
+		["Sauvegarder"]="Save", ["Charger"]="Load", ["Supprimer toutes les configs"]="Delete all configs",
+		["Langue du cheat"]="Cheat language", ["Le changement est instantane."]="Switch is instant.",
+		["Stream Proof"]="Stream Proof", ["Touche Stream Proof"]="Stream Proof key",
+		["Cache TOUT le cheat (menu, ESP, chams, minimap, watermark, cercle FOV). Appuie sur la touche pour l'activer sans ouvrir le menu."]="Hides the WHOLE cheat (menu, ESP, chams, minimap, watermark, FOV circle). Press the key to toggle it without opening the menu.",
+		["VISE PAR"]="AIMED BY", ["JOUEUR"]="PLAYER", ["menu"]="menu",
+	},
+	es = {
+		["Aimbot"]="Aimbot", ["Visuals"]="Visuales", ["Themes"]="Temas", ["Misc"]="Varios",
+		["Configs"]="Configs", ["Langue"]="Idioma", ["Joueurs"]="Jugadores", ["Monde"]="Mundo",
+		["Deplacements"]="Movimiento", ["Menu"]="Menu", ["Config"]="Config", ["Silent Aim"]="Punteria sil.",
+		["COMBAT"]="COMBATE", ["VISUELS"]="VISUALES", ["JEU"]="JUEGO", ["SYSTEME"]="SISTEMA",
+		["Maintien de la touche"]="Mantener tecla", ["Touche"]="Tecla", ["Mode de visee"]="Modo de punteria",
+		["Partie visee"]="Zona de impacto", ["Distance max (0 = illimite)"]="Distancia max (0 = inf.)",
+		["Lissage"]="Suavizado", ["Activer le hitchance"]="Activar precision",
+		["Chance de lock (%)"]="Prob. de fijado (%)", ["Comportement"]="Comportamiento",
+		["Ne pas lock a travers les murs"]="No fijar a traves de muros",
+		["Tir aleatoire sur le corps"]="Parte del cuerpo al azar", ["Ignorer les coequipiers"]="Ignorar companeros",
+		["Cercle FOV"]="Circulo FOV", ["Couleur du cercle"]="Color del circulo",
+		["Chance de toucher (%)"]="Prob. de impacto (%)", ["Boites"]="Cajas", ["Noms"]="Nombres",
+		["Distance"]="Distancia", ["Barre de vie"]="Barra de vida", ["Lignes (tracers)"]="Lineas",
+		["Chams (Highlight)"]="Chams", ["Point sur la tete"]="Punto en la cabeza",
+		["Couleur selon la vie"]="Color segun vida", ["Distance max"]="Distancia max",
+		["Taille du texte"]="Tamano del texto", ["Transparence chams"]="Transparencia chams",
+		["Couleur ESP"]="Color ESP", ["Squelette"]="Esqueleto",
+		["Epaisseur du squelette"]="Grosor del esqueleto", ["Mini-map"]="Minimapa", ["Taille"]="Tamano",
+		["Zoom (studs affiches)"]="Zoom (studs mostrados)", ["Alerte viseur"]="Aviso de punteria",
+		["Distance d'alerte"]="Distancia de aviso", ["Angle d'alerte (degres)"]="Angulo de aviso (grados)",
+		["Fullbright"]="Fullbright", ["Heure"]="Hora", ["Desactiver le brouillard"]="Quitar niebla",
+		["Desactiver les ombres"]="Quitar sombras", ["Camera"]="Camara", ["FOV camera"]="FOV de camara",
+		["Troisieme personne"]="Tercera persona", ["Couleur du menu"]="Color del menu",
+		["Effet de particules"]="Efecto de particulas", ["Densite des particules"]="Densidad de particulas",
+		["Themes rapides"]="Temas rapidos",
+		["Neige : petits points blancs qui tombent lentement.  Sakura : petales roses.  Pluie, Feuilles, Cendres, Etoiles, Or, Coeurs."]="Nieve: puntos blancos. Sakura: petalos rosas. Lluvia, Hojas, Cenizas, Estrellas, Oro, Corazones.",
+		["Fly (WASD/Space/Ctrl)"]="Vuelo (WASD/Space/Ctrl)", ["Vitesse de vol"]="Velocidad de vuelo",
+		["Speed hack"]="Speed hack", ["Vitesse"]="Velocidad", ["Jump hack"]="Jump hack",
+		["Puissance de saut"]="Fuerza de salto", ["Saut infini"]="Salto infinito",
+		["Hitbox expander"]="Hitbox expander", ["Taille hitbox"]="Tamano de hitbox",
+		["Teleportation"]="Teleportacion", ["TP -> joueur le plus proche"]="TP al jugador mas cercano",
+		["TP -> curseur"]="TP al cursor", ["Touche du menu"]="Tecla del menu", ["Watermark"]="Watermark",
+		["Anti-AFK"]="Anti-AFK", ["Reset personnage"]="Reiniciar personaje",
+		["Rejoindre le serveur"]="Reunirse al servidor", ["Decharger"]="Descargar",
+		["Decharger le cheat"]="Descargar el cheat", ["Sauvegarde"]="Guardados", ["Nom du fichier"]="Nombre del archivo",
+		["Sauvegarder"]="Guardar", ["Charger"]="Cargar", ["Supprimer toutes les configs"]="Borrar todas las configs",
+		["Langue du cheat"]="Idioma del cheat", ["Le changement est instantane."]="El cambio es instantaneo.",
+		["Stream Proof"]="Stream Proof", ["Touche Stream Proof"]="Tecla Stream Proof",
+		["Cache TOUT le cheat (menu, ESP, chams, minimap, watermark, cercle FOV). Appuie sur la touche pour l'activer sans ouvrir le menu."]="Oculta TODO el cheat (menu, ESP, chams, minimapa, watermark, circulo FOV). Pulsa la tecla para activarlo sin abrir el menu.",
+		["VISE PAR"]="TE APUNTAN", ["JOUEUR"]="JUGADOR", ["menu"]="menu",
+	},
+	ru = {
+		["Aimbot"]="Aimbot", ["Visuals"]="Vizualy", ["Themes"]="Temy", ["Misc"]="Raznoe",
+		["Configs"]="Konfigi", ["Langue"]="Yazyk", ["Joueurs"]="Igroki", ["Monde"]="Mir",
+		["Deplacements"]="Dvizhenie", ["Menu"]="Menyu", ["Config"]="Konfig", ["Silent Aim"]="Silent Aim",
+		["COMBAT"]="BOY", ["VISUELS"]="VIZUALY", ["JEU"]="IGRA", ["SYSTEME"]="SISTEMA",
+		["Maintien de la touche"]="Uderzhanie klavishi", ["Touche"]="Klavisha",
+		["Mode de visee"]="Rezhim navedeniya", ["Partie visee"]="Zona popadaniya",
+		["Distance max (0 = illimite)"]="Distantsiya (0 = besk.)", ["Lissage"]="Plavnost",
+		["Activer le hitchance"]="Vklyuchit shans", ["Chance de lock (%)"]="Shans loka (%)",
+		["Comportement"]="Povedenie", ["Ne pas lock a travers les murs"]="Ne lokit cherez steny",
+		["Tir aleatoire sur le corps"]="Sluchaynaya chast tela", ["Ignorer les coequipiers"]="Ignor soyuznikov",
+		["Cercle FOV"]="Krug FOV", ["Couleur du cercle"]="Tsvet kruga",
+		["Chance de toucher (%)"]="Shans popadaniya (%)", ["Boites"]="Korobki", ["Noms"]="Niki",
+		["Distance"]="Distantsiya", ["Barre de vie"]="Polosa hp", ["Lignes (tracers)"]="Linii",
+		["Chams (Highlight)"]="Chams", ["Point sur la tete"]="Tochka na golove",
+		["Couleur selon la vie"]="Tsvet po hp", ["Distance max"]="Maks. distantsiya",
+		["Taille du texte"]="Razmer teksta", ["Transparence chams"]="prozrachnost chams",
+		["Couleur ESP"]="Tsvet ESP", ["Squelette"]="Skelet",
+		["Epaisseur du squelette"]="Tolshina skeleta", ["Mini-map"]="Mini-karta", ["Taille"]="Razmer",
+		["Zoom (studs affiches)"]="Zum (studa)", ["Alerte viseur"]="Opoveshenie",
+		["Distance d'alerte"]="Distantsiya opovesheniya", ["Angle d'alerte (degres)"]="Uhol opovesheniya (grad)",
+		["Fullbright"]="Fullbright", ["Heure"]="Vremya", ["Desactiver le brouillard"]="Otkl. tuman",
+		["Desactiver les ombres"]="Otkl. teni", ["Camera"]="Kamera", ["FOV camera"]="FOV kamery",
+		["Troisieme personne"]="Tretye litso", ["Couleur du menu"]="Tsvet menyu",
+		["Effet de particules"]="Effekt chastits", ["Densite des particules"]="Plotnost chastits",
+		["Themes rapides"]="Bystrye temy",
+		["Neige : petits points blancs qui tombent lentement.  Sakura : petales roses.  Pluie, Feuilles, Cendres, Etoiles, Or, Coeurs."]="Sneg: belye tochki. Sakura: rozovye lepestki. Dozhd, Listya, Pepel, Zvezdy, Zoloto, Serdtsa.",
+		["Fly (WASD/Space/Ctrl)"]="Polyot (WASD/Space/Ctrl)", ["Vitesse de vol"]="Skorost polyota",
+		["Speed hack"]="Speed hack", ["Vitesse"]="Skorost", ["Jump hack"]="Jump hack",
+		["Puissance de saut"]="Sila pryzhka", ["Saut infini"]="Besk. pryzhok",
+		["Hitbox expander"]="Rasshirenie hitboksa", ["Taille hitbox"]="Razmer hitboksa",
+		["Teleportation"]="Teleport", ["TP -> joueur le plus proche"]="TP k blizhayshemu igroku",
+		["TP -> curseur"]="TP k kursory", ["Touche du menu"]="Klavisha menyu", ["Watermark"]="Watermark",
+		["Anti-AFK"]="Anti-AFK", ["Reset personnage"]="Respawn personazha",
+		["Rejoindre le serveur"]="Pereyti na server", ["Decharger"]="Vygruzit",
+		["Decharger le cheat"]="Vygruzit chit", ["Sauvegarde"]="Sohraneniya", ["Nom du fichier"]="Imya fayla",
+		["Sauvegarder"]="Sohranit", ["Charger"]="Zagruzit", ["Supprimer toutes les configs"]="Udalit vse konfigi",
+		["Langue du cheat"]="Yazyk chita", ["Le changement est instantane."]="Perekluchenie mgnovennoe.",
+		["Stream Proof"]="Stream Proof", ["Touche Stream Proof"]="Klavisha Stream Proof",
+		["Cache TOUT le cheat (menu, ESP, chams, minimap, watermark, cercle FOV). Appuie sur la touche pour l'activer sans ouvrir le menu."]="Skryvaet VES chit (menyu, ESP, chams, mini-kartu, watermark, krug FOV). Nazhmi klavishu chtoby vklyuchit bez otkrytiya menyu.",
+		["VISE PAR"]="TSELYAT", ["JOUEUR"]="IGROK", ["menu"]="меню",
+	},
+}
+local function L(s)
+	local d = TR[S.lang]
+	if d and d[s] then return d[s] end
+	return s
+end
+local langFns = {}
+local function regLang(fn) langFns[#langFns+1] = fn; pcall(fn) end
+local function applyLang()
+	for _, f in ipairs(langFns) do pcall(f) end
+	if langRefreshHook then pcall(langRefreshHook) end
+end
+local LANGS = {["Français"]="fr", ["Español"]="es", ["English"]="en", ["Русский"]="ru"}
+
+--// THEMES
+local MENU_COLORS = {
+	Bleu=Color3.fromRGB(61,126,255), Rose=Color3.fromRGB(255,110,180), Violet=Color3.fromRGB(160,110,255),
+	Cyan=Color3.fromRGB(0,200,220), Turquoise=Color3.fromRGB(0,190,180), Vert=Color3.fromRGB(0,210,120),
+	Rouge=Color3.fromRGB(240,60,65), Orange=Color3.fromRGB(255,150,50), Jaune=Color3.fromRGB(250,210,60),
+	Blanc=Color3.fromRGB(235,235,245), Or=Color3.fromRGB(255,205,90), Magenta=Color3.fromRGB(230,80,220),
+	Lavande=Color3.fromRGB(190,160,255), Menthe=Color3.fromRGB(120,240,200), Corail=Color3.fromRGB(255,130,120),
+}
+local COLOR_NAMES = {"Bleu","Rose","Violet","Cyan","Turquoise","Vert","Rouge","Orange","Jaune",
+	"Blanc","Or","Magenta","Lavande","Menthe","Corail"}
+
+local EFFECTS = {
+	Aucun    = {},
+	Neige    = {col=Color3.new(1,1,1),           smin=3, smax=5, vmin=5,  vmax=13, trans=0.20, round=true},
+	Sakura   = {col=Color3.fromRGB(255,160,195), smin=5, smax=9, vmin=4,  vmax=10, trans=0.10, round=true, spin=50},
+	Pluie    = {col=Color3.fromRGB(150,200,255), smin=2, smax=3, vmin=40, vmax=70, trans=0.35},
+	Feuilles = {col=Color3.fromRGB(120,210,120), smin=5, smax=9, vmin=5,  vmax=12, trans=0.10, round=true, spin=80},
+	Cendres  = {col=Color3.fromRGB(225,225,228), smin=2, smax=4, vmin=3,  vmax=9,  trans=0.40, round=true, spin=25},
+	Etoiles  = {col=Color3.fromRGB(255,240,170), smin=2, smax=4, vmin=2,  vmax=6,  trans=0.05, round=true, twinkle=true},
+	Or       = {col=Color3.fromRGB(255,215,110), smin=3, smax=6, vmin=4,  vmax=11, trans=0.05, round=true, spin=95},
+	Coeurs   = {col=Color3.fromRGB(255,120,170), smin=4, smax=7, vmin=4,  vmax=10, trans=0.10, round=true, spin=35},
+}
+local EFFECT_NAMES = {"Aucun","Neige","Sakura","Pluie","Feuilles","Cendres","Etoiles","Or","Coeurs"}
+
+local THEMES = {
+	Sakura  = {color="Rose",      effect="Sakura"},
+	Snow    = {color="Cyan",      effect="Neige"},
+	Pluie   = {color="Bleu",      effect="Pluie"},
+	Foret   = {color="Vert",      effect="Feuilles"},
+	Cendre  = {color="Blanc",     effect="Cendres"},
+	Nuit    = {color="Violet",    effect="Etoiles"},
+	Or      = {color="Or",        effect="Or"},
+	Amour   = {color="Magenta",   effect="Coeurs"},
+	Lavande = {color="Lavande",   effect="Neige"},
+	Menthe  = {color="Menthe",    effect="Neige"},
+	Corail  = {color="Corail",    effect="Sakura"},
+	Orage   = {color="Turquoise", effect="Pluie"},
+	Braise  = {color="Orange",    effect="Cendres"},
+	Noel    = {color="Rouge",     effect="Neige"},
+}
+
+--// HELPERS
+local function new(class, props, parent)
+	local o = Instance.new(class)
+	for k,v in pairs(props) do o[k] = v end
+	if parent then o.Parent = parent end
+	return o
+end
+local function charOf(plr)
+	local c = plr.Character
+	if not c then return nil end
+	local hum = c:FindFirstChildOfClass("Humanoid")
+	local hrp = c:FindFirstChild("HumanoidRootPart")
+	if hum and hrp and hum.Health > 0 then return c, hum, hrp end
+	return nil
+end
+local function isTeam(p) return p.Team ~= nil and LP.Team ~= nil and p.Team == LP.Team end
+local function keyName(k)
+	if typeof(k) == "EnumItem" then return (tostring(k):match("%.(.+)$") or "?") end
+	return "?"
+end
+local function keyMatch(i, k) return i.KeyCode == k or i.UserInputType == k end
+local function getPart(c, n) return c:FindFirstChild(n) or c:FindFirstChild("HumanoidRootPart") end
+
+local function visibleTo(part, char)
+	local rp = RaycastParams.new()
+	rp.FilterType = Enum.RaycastFilterType.Exclude
+	rp.FilterDescendantsInstances = {LP.Character}
+	local hit = workspace:Raycast(Camera.CFrame.Position, part.Position - Camera.CFrame.Position, rp)
+	if not hit then return true end
+	return hit.Instance:IsDescendantOf(char)
+end
+
+local randAt, randVal = 0, 0.5
+local function randFrac()
+	local t = os.clock()
+	if t - randAt > 0.22 then randAt = t; randVal = math.random() end
+	return randVal
+end
+
+local function targetPos(char, cfg)
+	if cfg.randomPart then
+		local head = char:FindFirstChild("Head")
+		local hrp = char:FindFirstChild("HumanoidRootPart")
+		if head and hrp then
+			local base = head.Position:Lerp(hrp.Position - Vector3.new(0, 1.5, 0), randFrac())
+			return base + Vector3.new(math.random()*0.5-0.25, math.random()*0.5-0.25, math.random()*0.5-0.25)
+		end
+	end
+	return getPart(char, cfg.part).Position
+end
+
+local function findTarget(cfg)
+	local best, bestD = nil, math.huge
+	local vp = Camera.ViewportSize
+	local center = Vector2.new(vp.X/2, vp.Y/2)
+	local camPos = Camera.CFrame.Position
+	for _, plr in ipairs(Players:GetPlayers()) do
+		if plr ~= LP and not (cfg.team and isTeam(plr)) then
+			local char = charOf(plr)
+			if char then
+				local part = getPart(char, cfg.part)
+				local d3 = (camPos - part.Position).Magnitude
+				if (not cfg.maxDist or cfg.maxDist <= 0 or d3 <= cfg.maxDist) then
+					local pos = targetPos(char, cfg)
+					local sp, on = Camera:WorldToViewportPoint(pos)
+					if on then
+						local d = (Vector2.new(sp.X, sp.Y) - center).Magnitude
+						if d <= cfg.fov and d < bestD then
+							if (not cfg.wall) or visibleTo(part, char) then
+								best, bestD = plr, d
+							end
+						end
+					end
+				end
+			end
+		end
+	end
+	return best
+end
+
+--// SILENT AIM
+local silentPos, silentAt = nil, 0
+local function silentTargetPos()
+	if not S.silent.on then return nil end
+	local now = os.clock()
+	if now - silentAt < 0.015 then return silentPos end
+	silentAt = now
+	silentPos = nil
+	if math.random(1,100) > S.silent.chance then return nil end
+	local plr = findTarget(S.silent)
+	if not plr then return nil end
+	local char = plr.Character
+	if not char then return nil end
+	silentPos = targetPos(char, S.silent)
+	return silentPos
+end
+
+do
+	local ok, err = pcall(function()
+		local mt = getrawmetatable(game)
+		local old = mt.__namecall
+		setreadonly(mt, false)
+		mt.__namecall = newcclosure(function(self, ...)
+			local m = getnamecallmethod()
+			if S.silent.on and not checkcaller() then
+				if m == "Raycast" and S.silent.hookRay then
+					local origin, dir, params = ...
+					if typeof(origin) == "Vector3" and typeof(dir) == "Vector3" then
+						local t = silentTargetPos()
+						if t then return old(self, origin, (t - origin).Unit * dir.Magnitude, params) end
+					end
+				elseif (m == "FindPartOnRay" or m == "FindPartOnRayWithIgnoreList"
+					or m == "FindPartOnRayWithWhitelist") and S.silent.hookRay then
+					local ray = ...
+					if typeof(ray) == "Ray" then
+						local t = silentTargetPos()
+						if t then return old(self, Ray.new(ray.Origin, (t - ray.Origin).Unit * ray.Direction.Magnitude), select(2, ...)) end
+					end
+				elseif (m == "ScreenPointToRay" or m == "ViewportPointToRay") and S.silent.hookSPR then
+					local ray = old(self, ...)
+					local t = silentTargetPos()
+					if t and typeof(ray) == "Ray" then
+						return Ray.new(ray.Origin, (t - ray.Origin).Unit * ray.Direction.Magnitude)
+					end
+					return ray
+				end
+			end
+			return old(self, ...)
+		end)
+		setreadonly(mt, true)
+	end)
+	if not ok then warn("[VERSACE] silent aim: "..tostring(err)) end
+end
+
+--// AIMBOT
+local aimHeld = false
+local aimLastTarget, aimPass = nil, true
+local fovCircle
+if Draw then
+	fovCircle = Draw.new("Circle")
+	fovCircle.Thickness = 1; fovCircle.Filled = false; fovCircle.NumSides = 64
+	fovCircle.Transparency = 0.4; fovCircle.Visible = false
+end
+local function aimActive() return S.aim.on and ((not S.aim.hold) or aimHeld) end
+local function runAim()
+	local plr = findTarget(S.aim)
+	if not plr then aimLastTarget = nil; return end
+	if S.aim.hitchance then
+		if plr ~= aimLastTarget then
+			aimLastTarget = plr
+			aimPass = math.random(1,100) <= S.aim.hitchanceVal
+		end
+		if not aimPass then return end
+	else
+		aimLastTarget = plr
+	end
+	local char = plr.Character
+	if not char then return end
+	local pos = targetPos(char, S.aim)
+	if S.aim.mode == "Mouse" and hasMouseRel then
+		local sp = Camera:WorldToViewportPoint(pos)
+		local vp = Camera.ViewportSize
+		mousemoverel((sp.X - vp.X/2) / S.aim.smooth, (sp.Y - vp.Y/2) / S.aim.smooth)
+	else
+		Camera.CFrame = Camera.CFrame:Lerp(CFrame.lookAt(Camera.CFrame.Position, pos), math.clamp(1/S.aim.smooth, 0, 1))
+	end
+end
+
+--// ESP
+local espCache = {}
+local R15 = {
+	{"Head","UpperTorso"},{"UpperTorso","LowerTorso"},
+	{"UpperTorso","LeftUpperArm"},{"LeftUpperArm","LeftLowerArm"},{"LeftLowerArm","LeftHand"},
+	{"UpperTorso","RightUpperArm"},{"RightUpperArm","RightLowerArm"},{"RightLowerArm","RightHand"},
+	{"LowerTorso","LeftUpperLeg"},{"LeftUpperLeg","LeftLowerLeg"},{"LeftLowerLeg","LeftFoot"},
+	{"LowerTorso","RightUpperLeg"},{"RightUpperLeg","RightLowerLeg"},{"RightLowerLeg","RightFoot"},
+}
+local R6 = {{"Head","Torso"},{"Torso","Left Arm"},{"Torso","Right Arm"},{"Torso","Left Leg"},{"Torso","Right Leg"}}
+local BOXLIST = {"box","name","hp","hpbg","tracer","dot"}
+
+local function delESP(plr)
+	local o = espCache[plr]
+	if not o then return end
+	for _, k in ipairs(BOXLIST) do if o[k] then pcall(function() o[k]:Remove() end) end end
+	for _, l in ipairs(o.bones) do pcall(function() l:Remove() end) end
+	if o.cham then o.cham:Destroy() end
+	espCache[plr] = nil
+end
+
+local function addESP(plr)
+	if plr == LP or espCache[plr] then return end
+	local o = {bones={}}
+	if Draw then
+		o.box = Draw.new("Square"); o.box.Filled=false; o.box.Thickness=1; o.box.Visible=false
+		o.name = Draw.new("Text"); o.name.Center=true; o.name.Outline=true; o.name.Visible=false
+		o.hp = Draw.new("Square"); o.hp.Filled=true; o.hp.Visible=false
+		o.hpbg = Draw.new("Square"); o.hpbg.Filled=true; o.hpbg.Color=Color3.fromRGB(0,0,0); o.hpbg.Visible=false
+		o.tracer = Draw.new("Line"); o.tracer.Thickness=1; o.tracer.Visible=false
+		o.dot = Draw.new("Circle"); o.dot.Filled=true; o.dot.NumSides=12; o.dot.Visible=false
+	end
+	o.cham = new("Highlight", {FillColor=COLORS.Green, FillTransparency=0.65, OutlineTransparency=1,
+		DepthMode=Enum.HighlightDepthMode.AlwaysOnTop, Enabled=false, Parent=CoreGui})
+	espCache[plr] = o
+end
+
+for _, p in ipairs(Players:GetPlayers()) do addESP(p) end
+keep(Players.PlayerAdded:Connect(addESP))
+keep(Players.PlayerRemoving:Connect(delESP))
+
+local function hideESP(o)
+	for _, k in ipairs(BOXLIST) do if o[k] then o[k].Visible = false end end
+	for _, l in ipairs(o.bones) do l.Visible = false end
+end
+local function bone(o, i, a, b, col)
+	local l = o.bones[i]
+	if not l then l = Draw.new("Line"); o.bones[i] = l end
+	l.Thickness = S.esp.boneThick
+	l.From = a; l.To = b; l.Color = col; l.Visible = true
+end
+
+local function renderESP()
+	local vp = Camera.ViewportSize
+	for plr, o in pairs(espCache) do
+		if not plr.Parent then
+			delESP(plr)
+		else
+			local char, hum, hrp = charOf(plr)
+			local show, dist = false, 0
+			if S.esp.on and not S.misc.streamproof and char then
+				dist = (Camera.CFrame.Position - hrp.Position).Magnitude
+				show = dist <= S.esp.max and not (S.esp.team and isTeam(plr))
+			end
+			if o.cham then
+				o.cham.Enabled = show and S.esp.cham and not S.misc.streamproof
+				o.cham.Adornee = o.cham.Enabled and char or nil
+				o.cham.FillColor = COLORS[S.esp.col] or COLORS.Green
+				o.cham.FillTransparency = S.esp.chamTrans
+			end
+			if not o.box then
+			elseif not show then
+				hideESP(o)
+			else
+				local head = char:FindFirstChild("Head") or hrp
+				local tp, ton = Camera:WorldToViewportPoint(head.Position + Vector3.new(0,0.85,0))
+				local bp, bon = Camera:WorldToViewportPoint(hrp.Position - Vector3.new(0,2.9,0))
+				if not (ton and bon) then
+					hideESP(o)
+				else
+					local h = math.abs(bp.Y - tp.Y)
+					local w = h * 0.55
+					local x, y = tp.X - w/2, tp.Y
+					local mh = hum.MaxHealth > 0 and hum.MaxHealth or 100
+					local frac = math.clamp(hum.Health / mh, 0, 1)
+					local col = COLORS[S.esp.col] or COLORS.Green
+					if S.esp.healthCol then
+						if frac < 0.35 then col = COLORS.Red elseif frac < 0.7 then col = COLORS.Yellow end
+					end
+					o.box.Visible = S.esp.box
+					o.box.Size = Vector2.new(w,h); o.box.Position = Vector2.new(x,y); o.box.Color = col
+					o.name.Visible = S.esp.name
+					o.name.Size = S.esp.textSize
+					o.name.Text = plr.Name .. (S.esp.dist and ("  ["..math.floor(dist).."m]") or "")
+					o.name.Position = Vector2.new(tp.X, y - S.esp.textSize - 4); o.name.Color = col
+					o.hpbg.Visible = S.esp.hp; o.hp.Visible = S.esp.hp
+					o.hpbg.Size = Vector2.new(3,h); o.hpbg.Position = Vector2.new(x-6,y)
+					o.hp.Size = Vector2.new(3,h*frac); o.hp.Position = Vector2.new(x-6, y+h*(1-frac)); o.hp.Color = col
+					o.tracer.Visible = S.esp.tracer
+					o.tracer.From = Vector2.new(vp.X/2, vp.Y); o.tracer.To = Vector2.new(tp.X, bp.Y); o.tracer.Color = col
+					o.dot.Visible = S.esp.dot
+					o.dot.Radius = 3; o.dot.Position = Vector2.new(tp.X, tp.Y); o.dot.Color = col
+					local used = 0
+					if S.esp.skeleton then
+						local set = char:FindFirstChild("UpperTorso") and R15 or R6
+						for _, j in ipairs(set) do
+							local a, b = char:FindFirstChild(j[1]), char:FindFirstChild(j[2])
+							if a and b then
+								local ap, aon = Camera:WorldToViewportPoint(a.Position)
+								local bq, bon2 = Camera:WorldToViewportPoint(b.Position)
+								if aon and bon2 then
+									used += 1
+									bone(o, used, Vector2.new(ap.X,ap.Y), Vector2.new(bq.X,bq.Y), col)
+								end
+							end
+						end
+					end
+					for i = used+1, #o.bones do o.bones[i].Visible = false end
+				end
+			end
+		end
+	end
+end
+
+--// MOUVEMENT
+local flyBV
+local function setFly(v)
+	S.mov.fly = v
+	local char = LP.Character
+	local hum = char and char:FindFirstChildOfClass("Humanoid")
+	if hum then hum.PlatformStand = v end
+	if not v and flyBV then flyBV:Destroy(); flyBV = nil end
+end
+keep(RunService.Stepped:Connect(function()
+	if not S.mov.fly then return end
+	local char = LP.Character
+	local hum = char and char:FindFirstChildOfClass("Humanoid")
+	local hrp = char and char:FindFirstChild("HumanoidRootPart")
+	if not (hum and hrp) then return end
+	hum.PlatformStand = true
+	if not flyBV or flyBV.Parent ~= hrp then
+		if flyBV then flyBV:Destroy() end
+		flyBV = new("BodyVelocity", {MaxForce=Vector3.new(1e5,1e5,1e5), P=1e4, Parent=hrp})
+	end
+	local dir = Vector3.zero
+	local cf = Camera.CFrame
+	if UIS:IsKeyDown(Enum.KeyCode.W) then dir += cf.LookVector end
+	if UIS:IsKeyDown(Enum.KeyCode.S) then dir -= cf.LookVector end
+	if UIS:IsKeyDown(Enum.KeyCode.A) then dir -= cf.RightVector end
+	if UIS:IsKeyDown(Enum.KeyCode.D) then dir += cf.RightVector end
+	if UIS:IsKeyDown(Enum.KeyCode.Space) then dir += Vector3.new(0,1,0) end
+	if UIS:IsKeyDown(Enum.KeyCode.LeftControl) then dir -= Vector3.new(0,1,0) end
+	if dir.Magnitude > 0 then dir = dir.Unit end
+	flyBV.Velocity = dir * S.mov.flyspd
+end))
+
+local running = true
+task.spawn(function()
+	while running do
+		task.wait(0.1)
+		local char = LP.Character
+		if char then
+			local hum = char:FindFirstChildOfClass("Humanoid")
+			if hum then
+				if S.mov.spd then hum.WalkSpeed = S.mov.speed end
+				if S.mov.jmp then hum.UseJumpPower = true; hum.JumpPower = S.mov.jump end
+			end
+			if S.mov.noclip then
+				for _, p in ipairs(char:GetDescendants()) do
+					if p:IsA("BasePart") then p.CanCollide = false end
+				end
+			end
+			if S.mov.hb then
+				local hrp = char:FindFirstChild("HumanoidRootPart")
+				if hrp then hrp.Size = Vector3.new(S.mov.hbsize, S.mov.hbsize, S.mov.hbsize) end
+			end
+		end
+	end
+end)
+
+keep(UIS.JumpRequest:Connect(function()
+	if S.mov.infjump then
+		local char = LP.Character
+		local hum = char and char:FindFirstChildOfClass("Humanoid")
+		if hum then hum:ChangeState(Enum.HumanoidStateType.Jumping) end
+	end
+end))
+keep(LP.Idled:Connect(function()
+	if S.misc.antiafk then pcall(function() VU:CaptureController(); VU:ClickButton2(Vector2.new()) end) end
+end))
+
+local function tpNearest()
+	local _, _, hrp = charOf(LP)
+	if not hrp then return end
+	local best, bd = nil, math.huge
+	for _, plr in ipairs(Players:GetPlayers()) do
+		if plr ~= LP then
+			local _, _, h = charOf(plr)
+			if h then
+				local d = (hrp.Position - h.Position).Magnitude
+				if d < bd then bd, best = d, h end
+			end
+		end
+	end
+	if best then hrp.CFrame = best.CFrame * CFrame.new(0,0,4) end
+end
+local function tpCursor()
+	local _, _, hrp = charOf(LP)
+	if not hrp then return end
+	local m = UIS:GetMouseLocation()
+	local ray = Camera:ViewportPointToRay(m.X, m.Y)
+	local hit = workspace:Raycast(ray.Origin, ray.Direction * 2000)
+	if hit then hrp.CFrame = CFrame.new(hit.Position + Vector3.new(0,3,0)) end
+end
+local function applyWorld()
+	if S.world.bright then
+		Lighting.Brightness = 3; Lighting.ClockTime = S.world.clock
+		Lighting.GlobalShadows = not S.world.shadows
+		Lighting.Ambient = Color3.fromRGB(170,170,170)
+		Lighting.OutdoorAmbient = Color3.fromRGB(170,170,170)
+		if S.world.fog then Lighting.FogEnd = 100000 end
+	else
+		Lighting.Brightness = origLight.Brightness; Lighting.ClockTime = origLight.ClockTime
+		Lighting.GlobalShadows = origLight.GlobalShadows
+		Lighting.Ambient = origLight.Ambient; Lighting.OutdoorAmbient = origLight.OutdoorAmbient
+		Lighting.FogEnd = origLight.FogEnd
+	end
+end
+
+--// ================= UI =================
+local T = {
+	bg=Color3.fromRGB(10,10,12), side=Color3.fromRGB(13,13,16), card=Color3.fromRGB(19,19,23),
+	card2=Color3.fromRGB(25,25,30), row=Color3.fromRGB(24,24,28), border=Color3.fromRGB(33,33,40),
+	accent=Color3.fromRGB(240,60,65),
+	text=Color3.fromRGB(233,233,240), sub=Color3.fromRGB(126,126,140), off=Color3.fromRGB(40,40,48),
+}
+
+local guiParent = LP:WaitForChild("PlayerGui")
+pcall(function() if typeof(gethui) == "function" then guiParent = gethui() end end)
+
+local loadingDone = false
+
+-- ================= ÉCRAN DE CHARGEMENT =================
+do
+	local lg = new("ScreenGui", {Name="VERSACE_Load", IgnoreGuiInset=true, DisplayOrder=1001, Parent=guiParent})
+	local lf = new("Frame", {Size=UDim2.new(1,0,1,0), BackgroundColor3=Color3.fromRGB(5,5,7), BorderSizePixel=0}, lg)
+
+	local pc = new("Frame", {Size=UDim2.new(1,0,1,0), BackgroundTransparency=1,
+		ClipsDescendants=true, ZIndex=0}, lf)
+	local lparts = {}
+	for i = 1, 80 do
+		local s = math.random(2,5)
+		local f = new("Frame", {Size=UDim2.fromOffset(s,s), BackgroundColor3=Color3.fromRGB(255,205,110),
+			BackgroundTransparency=math.random(10,65)/100, BorderSizePixel=0, ZIndex=0,
+			Position=UDim2.new(math.random(),0,math.random(),0)}, pc)
+		new("UICorner", {CornerRadius=UDim.new(1,0)}, f)
+		lparts[i] = {f=f, vy=math.random(3,9)/100, vx=math.random(-4,4)/1000, sway=math.random()*6.28}
+	end
+
+	local box = new("Frame", {Size=UDim2.fromOffset(620,300), Position=UDim2.new(0.5,-310,0.5,-150),
+		BackgroundTransparency=1, ZIndex=1}, lf)
+
+	local lineTop = new("Frame", {Size=UDim2.fromOffset(0,2), Position=UDim2.new(0.5,0,0,60),
+		AnchorPoint=Vector2.new(0.5,0.5), BackgroundColor3=Color3.fromRGB(255,90,95),
+		BorderSizePixel=0, ZIndex=3}, box)
+	local lineBot = new("Frame", {Size=UDim2.fromOffset(0,2), Position=UDim2.new(0.5,0,0,164),
+		AnchorPoint=Vector2.new(0.5,0.5), BackgroundColor3=Color3.fromRGB(255,90,95),
+		BorderSizePixel=0, ZIndex=3}, box)
+
+	local glow = new("TextLabel", {Size=UDim2.fromOffset(620,92), Position=UDim2.new(0,0,0,66),
+		BackgroundTransparency=1, Text="VERSACE", Font=Enum.Font.GothamBlack, TextSize=66,
+		TextColor3=Color3.fromRGB(255,70,75), TextTransparency=0.6, ZIndex=2}, box)
+	local title = new("TextLabel", {Size=UDim2.fromOffset(620,92), Position=UDim2.new(0,0,0,66),
+		BackgroundTransparency=1, Text="VERSACE", Font=Enum.Font.GothamBlack, TextSize=66,
+		TextColor3=Color3.new(1,1,1), ZIndex=4}, box)
+	local tgrad = new("UIGradient", {Color=ColorSequence.new({
+		ColorSequenceKeypoint.new(0.00, Color3.fromRGB(255,60,60)),
+		ColorSequenceKeypoint.new(0.38, Color3.fromRGB(255,140,140)),
+		ColorSequenceKeypoint.new(0.52, Color3.fromRGB(255,255,255)),
+		ColorSequenceKeypoint.new(0.66, Color3.fromRGB(255,130,130)),
+		ColorSequenceKeypoint.new(1.00, Color3.fromRGB(255,50,50)),
+	}), Rotation=90}, title)
+	new("UIStroke", {Color=Color3.fromRGB(25,5,5), Thickness=3, Transparency=0.05}, title)
+
+	local sub = new("TextLabel", {Size=UDim2.fromOffset(620,20), Position=UDim2.new(0,0,0,174),
+		BackgroundTransparency=1, Text="M E N U   B Y   D J I N N U H Q",
+		Font=Enum.Font.GothamMedium, TextSize=13, TextColor3=Color3.fromRGB(210,180,180), ZIndex=3}, box)
+
+	local barGlow = new("Frame", {Size=UDim2.fromOffset(350,18), Position=UDim2.new(0.5,-175,0,213),
+		BackgroundColor3=Color3.fromRGB(255,80,80), BackgroundTransparency=0.86,
+		BorderSizePixel=0, ZIndex=2}, box)
+	new("UICorner", {CornerRadius=UDim.new(1,0)}, barGlow)
+
+	local track = new("Frame", {Size=UDim2.fromOffset(320,10), Position=UDim2.new(0.5,-160,0,217),
+		BackgroundColor3=Color3.fromRGB(20,20,25), BorderSizePixel=0, ZIndex=3}, box)
+	new("UICorner", {CornerRadius=UDim.new(1,0)}, track)
+	local fill = new("Frame", {Size=UDim2.new(0,0,1,0), BorderSizePixel=0, ZIndex=4}, track)
+	new("UICorner", {CornerRadius=UDim.new(1,0)}, fill)
+	new("UIGradient", {Color=ColorSequence.new({
+		ColorSequenceKeypoint.new(0.00, Color3.fromRGB(255,30,30)),
+		ColorSequenceKeypoint.new(0.45, Color3.fromRGB(255,90,60)),
+		ColorSequenceKeypoint.new(0.80, Color3.fromRGB(255,170,120)),
+		ColorSequenceKeypoint.new(1.00, Color3.fromRGB(255,240,230)),
+	})}, fill)
+
+	local flames = {}
+	for i = 1, 18 do
+		local f = new("Frame", {Size=UDim2.fromOffset(math.random(2,4), math.random(4,10)),
+			Position=UDim2.new(math.random(), 0, 0, 0), AnchorPoint=Vector2.new(0.5,1),
+			BackgroundColor3=Color3.fromRGB(255,110,80), BorderSizePixel=0, ZIndex=5,
+			BackgroundTransparency=math.random(10,55)/100}, fill)
+		new("UICorner", {CornerRadius=UDim.new(1,0)}, f)
+		flames[i] = {f=f, base=f.BackgroundTransparency, ph=math.random()*6.28, sp=math.random(3,9)}
+	end
+
+	local pct = new("TextLabel", {Size=UDim2.fromOffset(620,20), Position=UDim2.new(0,0,0,240),
+		BackgroundTransparency=1, Text="0 %", Font=Enum.Font.GothamBold, TextSize=13,
+		TextColor3=Color3.fromRGB(255,150,150), ZIndex=3}, box)
+
+	local loadRun = true
+
+	keep(RunService.Heartbeat:Connect(function(dt)
+		if not loadRun then return end
+		local now = os.clock()
+		for _, p in ipairs(lparts) do
+			local pos = p.f.Position
+			local y = pos.Y.Scale + p.vy*dt
+			local x = pos.X.Scale + p.vx*dt + math.sin(now*1.2+p.sway)*0.0006
+			if y > 1.05 then y = -0.05; x = math.random() end
+			p.f.Position = UDim2.new(x, 0, y, 0)
+		end
+		for _, fl in ipairs(flames) do
+			fl.f.BackgroundTransparency = math.clamp(fl.base + math.sin(now*fl.sp + fl.ph)*0.3, 0, 0.95)
+			fl.f.Position = UDim2.new(fl.f.Position.X.Scale, 0, 0,
+				-math.abs(math.sin(now*fl.sp*0.7 + fl.ph))*4)
+			fl.f.BackgroundColor3 = Color3.fromRGB(255, 90 + math.abs(math.sin(now*3+fl.ph))*165, 60)
+		end
+		tgrad.Offset = Vector2.new(math.sin(now*1.2)*0.3, 0)
+		local pulse = math.sin(now*3.2)*2
+		title.TextSize = 66 + pulse
+		glow.TextSize = 66 + pulse + 3
+		glow.TextTransparency = 0.55 + math.sin(now*3.2)*0.2
+		sub.TextTransparency = math.abs(math.sin(now*1.6))*0.3
+		barGlow.BackgroundTransparency = 0.8 + math.abs(math.sin(now*4))*0.15
+	end))
+
+	task.spawn(function()
+		for i = 0, 100, 2 do
+			local w = 320 * (i/100)
+			lineTop.Size = UDim2.fromOffset(w, 2)
+			lineBot.Size = UDim2.fromOffset(w, 2)
+			task.wait(0.014)
+		end
+		for i = 0, 100 do
+			fill.Size = UDim2.new(i/100, 0, 1, 0)
+			pct.Text = i .. " %"
+			task.wait(0.05)
+		end
+		task.wait(0.7)
+		for i = 1, 32 do
+			local a = i/32
+			lf.BackgroundTransparency = a
+			title.TextTransparency = a
+			glow.TextTransparency = math.min(1, 0.55 + a)
+			sub.TextTransparency = math.min(1, a)
+			pct.TextTransparency = a
+			track.BackgroundTransparency = a
+			barGlow.BackgroundTransparency = math.min(1, 0.85 + a*0.15)
+			lineTop.BackgroundTransparency = a
+			lineBot.BackgroundTransparency = a
+			for _, fl in ipairs(flames) do
+				fl.f.BackgroundTransparency = math.min(1, fl.f.BackgroundTransparency + 0.035)
+			end
+			for _, p in ipairs(lparts) do
+				p.f.BackgroundTransparency = math.min(1, p.f.BackgroundTransparency + 0.03)
+			end
+			task.wait(0.024)
+		end
+		loadRun = false
+		lg:Destroy()
+		loadingDone = true
+	end)
+end
+
+local gui = new("ScreenGui", {Name="VERSACE", ResetOnSpawn=false, IgnoreGuiInset=true,
+	ZIndexBehavior=Enum.ZIndexBehavior.Sibling, DisplayOrder=999, Parent=guiParent})
+local hud = new("ScreenGui", {Name="VERSACE_HUD", ResetOnSpawn=false, IgnoreGuiInset=true,
+	ZIndexBehavior=Enum.ZIndexBehavior.Sibling, DisplayOrder=998, Parent=guiParent})
+gui.Enabled = false
+hud.Enabled = false
+
+local win, pageHolder, tabBar, navHolder, wm, footHint
+local pages, tabBtns, registry = {}, {}, {}
+local accentRefs, refreshFns = {}, {}
+local ddColor, ddEffect
+local mini, miniDots, warnLabel
+
+local function accent(inst, prop)
+	accentRefs[#accentRefs+1] = {i=inst, p=prop}
+	inst[prop] = T.accent
+	return inst
+end
+
+local function setStreamProof(v)
+	S.misc.streamproof = v
+	if v and gui then
+		task.delay(0.25, function()
+			if S.misc.streamproof and gui then gui.Enabled = false end
+		end)
+	end
+end
+
+local function applyMenuColor(name)
+	local c = MENU_COLORS[name]
+	if not c then return end
+	S.theme.color = name
+	T.accent = c
+	for _, r in ipairs(accentRefs) do pcall(function() r.i[r.p] = c end) end
+	for _, f in ipairs(refreshFns) do pcall(f) end
+end
+
+local partHolder
+local particles = {}
+
+local function buildParticles()
+	if partHolder then partHolder:Destroy(); partHolder = nil end
+	particles = {}
+	local cfg = EFFECTS[S.theme.effect]
+	if not cfg or not cfg.col or not win then return end
+	partHolder = new("Frame", {Size=UDim2.new(1,0,1,0), BackgroundTransparency=1,
+		ClipsDescendants=true, ZIndex=40, Active=false}, win)
+	for i = 1, S.theme.density do
+		local s = math.random(cfg.smin, cfg.smax)
+		local h = cfg.round and math.max(2, math.floor(s*0.72)) or s
+		local f = new("Frame", {
+			Size = UDim2.fromOffset(s, h),
+			BackgroundColor3 = cfg.col,
+			BackgroundTransparency = math.clamp(cfg.trans + math.random(0,35)/100, 0, 0.9),
+			BorderSizePixel = 0, ZIndex = 40, Active = false,
+			Position = UDim2.new(math.random(), 0, math.random(), 0),
+		}, partHolder)
+		new("UICorner", {CornerRadius = UDim.new(1,0)}, f)
+		local rot = math.random(0,360)
+		f.Rotation = rot
+		particles[i] = {
+			f=f, vy=math.random(cfg.vmin*10, cfg.vmax*10)/1000,
+			vx=math.random(-8,8)/1000, sway=math.random()*6.28,
+			rot=rot, rs=cfg.spin and math.random(-cfg.spin, cfg.spin) or 0,
+			tw=cfg.twinkle, base=f.BackgroundTransparency,
+		}
+	end
+end
+
+local rebuildQueued = false
+local function queueRebuild()
+	if rebuildQueued then return end
+	rebuildQueued = true
+	task.delay(0.15, function()
+		rebuildQueued = false
+		buildParticles()
+	end)
+end
+
+local function applyEffect(name)
+	if not EFFECTS[name] then return end
+	S.theme.effect = name
+	queueRebuild()
+end
+
+local function applyTheme(name)
+	local th = THEMES[name]
+	if not th then return end
+	applyMenuColor(th.color)
+	applyEffect(th.effect)
+	if ddColor then ddColor(th.color, false) end
+	if ddEffect then ddEffect(th.effect, false) end
+end
+
+keep(RunService.Heartbeat:Connect(function(dt)
+	if #particles == 0 then return end
+	local now = os.clock()
+	for _, p in ipairs(particles) do
+		local pos = p.f.Position
+		local y = pos.Y.Scale + p.vy * dt
+		local x = pos.X.Scale + p.vx * dt + math.sin(now*1.4 + p.sway) * 0.0008
+		if y > 1.06 then y = -0.06; x = math.random() end
+		if x > 1.06 then x = -0.05 elseif x < -0.05 then x = 1.05 end
+		p.f.Position = UDim2.new(x, 0, y, 0)
+		if p.rs ~= 0 then
+			p.rot = (p.rot + p.rs * dt) % 360
+			p.f.Rotation = p.rot
+		end
+		if p.tw then
+			p.f.BackgroundTransparency = math.clamp(p.base + math.sin(now*3 + p.sway)*0.22, 0, 0.95)
+		end
+	end
+end))
+
+local function buildMini()
+	if mini then mini:Destroy(); mini = nil end
+	miniDots = {}
+	if not S.esp.minimap then return end
+	local size = S.esp.minimapSize
+	mini = new("Frame", {Size=UDim2.fromOffset(size, size),
+		Position=UDim2.new(1, -size - 20, 1, -size - 20),
+		BackgroundColor3=Color3.fromRGB(10,10,13), BackgroundTransparency=0.3,
+		BorderSizePixel=0, ZIndex=45, Active=false}, hud)
+	new("UICorner", {CornerRadius=UDim.new(0,8)}, mini)
+	accent(new("UIStroke", {Thickness=1, Transparency=0.35}, mini), "Color")
+	new("Frame", {Size=UDim2.fromOffset(6,6), Position=UDim2.new(0.5,-3,0.5,-3),
+		BackgroundColor3=Color3.new(1,1,1), BorderSizePixel=0, ZIndex=47}, mini)
+end
+
+local function updateMini()
+	if not mini then return end
+	if S.misc.streamproof then mini.Visible = false; return end
+	mini.Visible = true
+	local _, _, lhrp = charOf(LP)
+	if not lhrp then return end
+	local cam = Camera.CFrame
+	local right, fwd = cam.RightVector, cam.LookVector
+	local scale = S.esp.minimapSize / math.max(S.esp.minimapZoom, 1)
+	local maxR = S.esp.minimapSize/2 - 6
+	local i = 0
+	for _, plr in ipairs(Players:GetPlayers()) do
+		if plr ~= LP then
+			local char, hum, hrp = charOf(plr)
+			if char then
+				local rel = hrp.Position - lhrp.Position
+				local x = rel:Dot(right) * scale
+				local z = rel:Dot(fwd) * scale
+				if math.abs(x) <= maxR and math.abs(z) <= maxR then
+					i += 1
+					local d = miniDots[i]
+					if not d then
+						d = new("Frame", {Size=UDim2.fromOffset(7,7), AnchorPoint=Vector2.new(0.5,0.5),
+							BorderSizePixel=0, ZIndex=46}, mini)
+						new("UICorner", {CornerRadius=UDim.new(1,0)}, d)
+						miniDots[i] = d
+					end
+					d.Visible = true
+					d.Position = UDim2.new(0.5, x, 0.5, -z)
+					local col = COLORS[S.esp.col] or COLORS.Green
+					local mh = hum.MaxHealth > 0 and hum.MaxHealth or 100
+					if hum.Health/mh < 0.5 then col = COLORS.Yellow end
+					d.BackgroundColor3 = col
+				end
+			end
+		end
+	end
+	for j = i+1, #miniDots do miniDots[j].Visible = false end
+end
+
+local function buildWarn()
+	warnLabel = new("TextLabel", {Size=UDim2.fromOffset(260,30), Position=UDim2.new(0.5,-130,0,70),
+		BackgroundColor3=Color3.fromRGB(150,25,35), BackgroundTransparency=0.15,
+		Text="", Font=Enum.Font.GothamBold, TextSize=13, TextColor3=Color3.new(1,1,1),
+		ZIndex=55, Visible=false}, hud)
+	new("UICorner", {CornerRadius=UDim.new(0,6)}, warnLabel)
+end
+
+local function updateWarn()
+	if not warnLabel then return end
+	if not S.misc.aimWarn or S.misc.streamproof then warnLabel.Visible = false; return end
+	local _, _, lhrp = charOf(LP)
+	if not lhrp then warnLabel.Visible = false; return end
+	local myPos = lhrp.Position
+	local thr = math.cos(math.rad(S.misc.warnAngle))
+	local n = 0
+	for _, plr in ipairs(Players:GetPlayers()) do
+		if plr ~= LP and not isTeam(plr) then
+			local char, hum, hrp = charOf(plr)
+			if char then
+				local d = (hrp.Position - myPos).Magnitude
+				if d <= S.misc.warnDist then
+					local toMe = (myPos - hrp.Position).Unit
+					if hrp.CFrame.LookVector:Dot(toMe) >= thr then n += 1 end
+				end
+			end
+		end
+	end
+	if n > 0 then
+		warnLabel.Visible = true
+		warnLabel.Text = L("VISE PAR").." "..n.." "..L("JOUEUR")..(n > 1 and "S" or "")
+		warnLabel.BackgroundTransparency = 0.05 + math.abs(math.sin(os.clock()*4))*0.35
+	else
+		warnLabel.Visible = false
+	end
+end
+
+--// CONFIG (avant build)
+local function encode()
+	local out = {}
+	for k, tbl in pairs(S) do
+		if type(tbl) == "table" then
+			out[k] = {}
+			for k2, v in pairs(tbl) do
+				if typeof(v) == "EnumItem" then out[k][k2] = {__e = tostring(v)}
+				elseif typeof(v) == "Color3" then out[k][k2] = {__c = {v.R, v.G, v.B}}
+				else out[k][k2] = v end
+			end
+		else
+			out[k] = tbl
+		end
+	end
+	return HttpService:JSONEncode(out)
+end
+local function decode(str)
+	local data = HttpService:JSONDecode(str)
+	for k, tbl in pairs(data) do
+		if S[k] ~= nil then
+			if type(tbl) == "table" and type(S[k]) == "table" then
+				for k2, v in pairs(tbl) do
+					if type(v) == "table" and v.__e then
+						local cat, nm = tostring(v.__e):match("Enum%.([^%.]+)%.(.+)$")
+						if cat and nm and Enum[cat] then S[k][k2] = Enum[cat][nm] end
+					elseif type(v) == "table" and v.__c then
+						S[k][k2] = Color3.new(v.__c[1], v.__c[2], v.__c[3])
+					else S[k][k2] = v end
+				end
+			else
+				S[k] = tbl
+			end
+		end
+	end
+	for _, e in ipairs(registry) do
+		local v = S
+		for i = 1, #e.path do v = v[e.path[i]] end
+		if v ~= nil then pcall(function() e.fn(v, false) end) end
+	end
+	setFly(S.mov.fly); applyWorld()
+	applyMenuColor(S.theme.color); queueRebuild(); buildMini()
+	applyLang()
+end
+
+local function build()
+	win = new("Frame", {Size=UDim2.fromOffset(880,540), Position=UDim2.new(0.5,-440,0.5,-270),
+		BackgroundColor3=T.bg, BorderSizePixel=0}, gui)
+	new("UICorner", {CornerRadius=UDim.new(0,10)}, win)
+	accent(new("UIStroke", {Thickness=1}, win), "Color")
+
+	local side = new("Frame", {Size=UDim2.new(0,170,1,0), BackgroundColor3=T.side, BorderSizePixel=0}, win)
+	new("UICorner", {CornerRadius=UDim.new(0,10)}, side)
+	new("Frame", {Size=UDim2.new(0,10,1,0), Position=UDim2.new(0,160,0,0),
+		BackgroundColor3=T.side, BorderSizePixel=0}, side)
+
+	new("TextLabel", {Size=UDim2.new(1,-32,0,28), Position=UDim2.new(0,16,0,16), BackgroundTransparency=1,
+		Text="VERSACE", Font=Enum.Font.GothamBlack, TextSize=22, TextColor3=T.text,
+		TextXAlignment=Enum.TextXAlignment.Left}, side)
+	accent(new("Frame", {Size=UDim2.new(0,52,0,2), Position=UDim2.new(0,17,0,46),
+		BorderSizePixel=0}, side), "BackgroundColor3")
+	new("TextLabel", {Size=UDim2.new(1,-32,0,14), Position=UDim2.new(0,17,0,52), BackgroundTransparency=1,
+		Text="by djinnuhq", Font=Enum.Font.Gotham, TextSize=10, TextColor3=T.sub,
+		TextXAlignment=Enum.TextXAlignment.Left}, side)
+
+	navHolder = new("Frame", {Size=UDim2.new(1,-20,1,-190), Position=UDim2.new(0,10,0,78),
+		BackgroundTransparency=1}, side)
+	new("UIListLayout", {Padding=UDim.new(0,2), SortOrder=Enum.SortOrder.LayoutOrder}, navHolder)
+
+	new("TextLabel", {Size=UDim2.new(1,-32,0,16), Position=UDim2.new(0,16,1,-38), BackgroundTransparency=1,
+		Text=LP.Name, Font=Enum.Font.GothamMedium, TextSize=12, TextColor3=T.text,
+		TextXAlignment=Enum.TextXAlignment.Left}, side)
+	footHint = new("TextLabel", {Size=UDim2.new(1,-32,0,14), Position=UDim2.new(0,16,1,-22),
+		BackgroundTransparency=1, Text=keyName(S.misc.menuKey).." = "..L("menu"), Font=Enum.Font.Gotham,
+		TextSize=10, TextColor3=T.sub, TextXAlignment=Enum.TextXAlignment.Left}, side)
+	regLang(function() footHint.Text = keyName(S.misc.menuKey).." = "..L("menu") end)
+
+	local content = new("Frame", {Size=UDim2.new(1,-170,1,0), Position=UDim2.new(0,170,0,0),
+		BackgroundColor3=T.bg, BorderSizePixel=0}, win)
+
+	local dragZone = new("Frame", {Size=UDim2.new(1,0,0,44), BackgroundTransparency=1, ZIndex=1}, content)
+	do
+		local dragging, start, origin = false, nil, nil
+		dragZone.InputBegan:Connect(function(i)
+			if i.UserInputType == Enum.UserInputType.MouseButton1 then
+				dragging = true; start = i.Position; origin = win.Position
+			end
+		end)
+		keep(UIS.InputEnded:Connect(function(i)
+			if i.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end
+		end))
+		keep(UIS.InputChanged:Connect(function(i)
+			if dragging and i.UserInputType == Enum.UserInputType.MouseMovement then
+				local d = i.Position - start
+				win.Position = UDim2.new(origin.X.Scale, origin.X.Offset+d.X, origin.Y.Scale, origin.Y.Offset+d.Y)
+			end
+		end))
+	end
+
+	tabBar = new("Frame", {Size=UDim2.new(1,0,0,40), BackgroundTransparency=1, ZIndex=2}, content)
+	new("UIListLayout", {FillDirection=Enum.FillDirection.Horizontal, Padding=UDim.new(0,4),
+		VerticalAlignment=Enum.VerticalAlignment.Center, SortOrder=Enum.SortOrder.LayoutOrder}, tabBar)
+	new("UIPadding", {PaddingLeft=UDim.new(0,16)}, tabBar)
+
+	pageHolder = new("Frame", {Size=UDim2.new(1,-28,1,-56), Position=UDim2.new(0,14,0,46),
+		BackgroundTransparency=1}, content)
+
+	wm = new("TextLabel", {Size=UDim2.fromOffset(280,24), Position=UDim2.new(0,12,0,12),
+		BackgroundColor3=T.bg, BorderSizePixel=0, Text="  VERSACE by djinnuhq",
+		Font=Enum.Font.GothamMedium, TextSize=12, TextColor3=T.text,
+		TextXAlignment=Enum.TextXAlignment.Left, ZIndex=50, Visible=S.misc.watermark}, hud)
+	new("UICorner", {CornerRadius=UDim.new(0,6)}, wm)
+	accent(new("UIStroke", {Thickness=1}, wm), "Color")
+
+	-- ============ COMPOSANTS ============
+	local function page()
+		local sf = new("ScrollingFrame", {Size=UDim2.new(1,0,1,0), BackgroundTransparency=1,
+			BorderSizePixel=0, ScrollBarThickness=3, ScrollBarImageColor3=T.accent,
+			CanvasSize=UDim2.new(0,0,0,0), Visible=false}, pageHolder)
+		local cols = new("Frame", {Size=UDim2.new(1,0,0,0), BackgroundTransparency=1}, sf)
+		local function mkcol(x)
+			local c = new("Frame", {Size=UDim2.new(0.5,-6,0,0), Position=UDim2.new(x,0,0,0),
+				BackgroundTransparency=1}, cols)
+			new("UIListLayout", {Padding=UDim.new(0,10), SortOrder=Enum.SortOrder.LayoutOrder}, c)
+			return c
+		end
+		local api = {sf=sf, cols={mkcol(0), mkcol(0.5)}, ci=0, n=0}
+		function api.next() api.n = api.n + 1; return api.n end
+		function api.pick() api.ci = api.ci % 2 + 1; return api.cols[api.ci] end
+		return api
+	end
+
+	local function recompute(pg)
+		local maxh = 0
+		for _, c in ipairs(pg.cols) do
+			local h = 0
+			for _, ch in ipairs(c:GetChildren()) do
+				if ch:IsA("Frame") then h = h + ch.Size.Y.Offset + 10 end
+			end
+			c.Size = UDim2.new(0.5,-6,0,h)
+			if h > maxh then maxh = h end
+		end
+		pg.cols.Size = UDim2.new(1,0,0,maxh)
+		pg.sf.CanvasSize = UDim2.new(0,0,0,maxh + 24)
+	end
+
+	local function card(pg, title, masterCb, masterDefault)
+		local col = pg.pick()
+		local holder = new("Frame", {Size=UDim2.new(1,0,0,36), BackgroundColor3=T.card,
+			BorderSizePixel=0, LayoutOrder=pg.next()}, col)
+		new("UICorner", {CornerRadius=UDim.new(0,8)}, holder)
+		new("UIStroke", {Color=T.border, Thickness=1}, holder)
+
+		local head = new("Frame", {Size=UDim2.new(1,0,0,30), BackgroundTransparency=1}, holder)
+		local dot = new("Frame", {Size=UDim2.fromOffset(6,6), Position=UDim2.new(0,12,0.5,-3),
+			BorderSizePixel=0}, head)
+		new("UICorner", {CornerRadius=UDim.new(1,0)}, dot)
+		accent(dot, "BackgroundColor3")
+		local tl = new("TextLabel", {Size=UDim2.new(1,-60,1,0), Position=UDim2.new(0,24,0,0),
+			BackgroundTransparency=1, Text=string.upper(L(title)), Font=Enum.Font.GothamBold,
+			TextSize=11, TextColor3=T.text, TextXAlignment=Enum.TextXAlignment.Left}, head)
+		regLang(function() tl.Text = string.upper(L(title)) end)
+
+		if masterCb then
+			local pill = new("Frame", {Size=UDim2.fromOffset(30,16), Position=UDim2.new(1,-42,0.5,-8),
+				BackgroundColor3=T.off, BorderSizePixel=0}, head)
+			new("UICorner", {CornerRadius=UDim.new(0,8)}, pill)
+			local kn = new("Frame", {Size=UDim2.fromOffset(10,10), Position=UDim2.new(0,3,0.5,-5),
+				BackgroundColor3=Color3.fromRGB(210,210,220), BorderSizePixel=0}, pill)
+			new("UICorner", {CornerRadius=UDim.new(0,5)}, kn)
+			local st = masterDefault and true or false
+			local function render()
+				pill.BackgroundColor3 = st and T.accent or T.off
+				kn.Position = st and UDim2.new(1,-13,0.5,-5) or UDim2.new(0,3,0.5,-5)
+			end
+			render()
+			refreshFns[#refreshFns+1] = render
+			local hb = new("TextButton", {Size=UDim2.fromScale(1,1), BackgroundTransparency=1,
+				Text="", ZIndex=3}, head)
+			hb.MouseButton1Click:Connect(function()
+				st = not st; render(); masterCb(st)
+			end)
+		end
+
+		holder:GetPropertyChangedSignal("Size"):Connect(function() recompute(pg) end)
+
+		local api = {holder = holder, y = 36}
+		function api.add(h)
+			local r = new("Frame", {Size=UDim2.new(1,-20,0,h), Position=UDim2.new(0,10,0,api.y),
+				BackgroundColor3=T.row, BorderSizePixel=0}, holder)
+			new("UICorner", {CornerRadius=UDim.new(0,5)}, r)
+			new("UIPadding", {PaddingLeft=UDim.new(0,8), PaddingRight=UDim.new(0,8)}, r)
+			api.y = api.y + h + 4
+			holder.Size = UDim2.new(1,0,0,api.y + 6)
+			return r
+		end
+		return api
+	end
+
+	local function reg(path, fn) registry[#registry+1] = {path=path, fn=fn} end
+
+	local function toggle(c, text, default, cb, path)
+		local r = c.add(24)
+		local tl = new("TextLabel", {Size=UDim2.new(1,-30,1,0), BackgroundTransparency=1, Text=L(text),
+			Font=Enum.Font.Gotham, TextSize=12.5, TextColor3=T.text,
+			TextXAlignment=Enum.TextXAlignment.Left}, r)
+		regLang(function() tl.Text = L(text) end)
+		local bx = new("Frame", {Size=UDim2.fromOffset(15,15), Position=UDim2.new(1,-15,0.5,-7.5),
+			BackgroundColor3=T.off, BorderSizePixel=0}, r)
+		new("UICorner", {CornerRadius=UDim.new(0,3)}, bx)
+		local chk = new("TextLabel", {Size=UDim2.fromScale(1,1), BackgroundTransparency=1, Text="",
+			Font=Enum.Font.GothamBold, TextSize=11, TextColor3=Color3.new(1,1,1), Visible=false}, bx)
+		local state = default
+		local function set(v, fire)
+			state = v
+			bx.BackgroundColor3 = v and T.accent or T.off
+			chk.Visible = v
+			if fire ~= false then cb(v) end
+		end
+		local btn = new("TextButton", {Size=UDim2.fromScale(1,1), BackgroundTransparency=1, Text="", ZIndex=3}, r)
+		btn.MouseButton1Click:Connect(function() set(not state) end)
+		set(state, false)
+		refreshFns[#refreshFns+1] = function() set(state, false) end
+		if path then reg(path, set) end
+	end
+
+	local function slider(c, text, min, max, default, cb, path)
+		local r = c.add(42)
+		local tl = new("TextLabel", {Size=UDim2.new(1,-50,0,16), BackgroundTransparency=1, Text=L(text),
+			Font=Enum.Font.Gotham, TextSize=12.5, TextColor3=T.text,
+			TextXAlignment=Enum.TextXAlignment.Left}, r)
+		regLang(function() tl.Text = L(text) end)
+		local val = accent(new("TextLabel", {Size=UDim2.new(0,50,0,16), Position=UDim2.new(1,-50,0,0),
+			BackgroundTransparency=1, Text=tostring(default), Font=Enum.Font.GothamMedium, TextSize=12,
+			TextXAlignment=Enum.TextXAlignment.Right}, r), "TextColor3")
+		local trk = new("Frame", {Size=UDim2.new(1,0,0,4), Position=UDim2.new(0,0,0,26),
+			BackgroundColor3=T.off, BorderSizePixel=0}, r)
+		new("UICorner", {CornerRadius=UDim.new(0,2)}, trk)
+		local fill = new("Frame", {Size=UDim2.new((default-min)/(max-min),0,1,0),
+			BackgroundColor3=T.accent, BorderSizePixel=0}, trk)
+		new("UICorner", {CornerRadius=UDim.new(0,2)}, fill)
+		local hit = new("TextButton", {Size=UDim2.new(1,0,0,22), Position=UDim2.new(0,0,0,18),
+			BackgroundTransparency=1, Text="", ZIndex=3}, r)
+		local dragging = false
+		local function fromX(x)
+			local rel = math.clamp((x - trk.AbsolutePosition.X) / math.max(trk.AbsoluteSize.X,1), 0, 1)
+			local v = math.floor(min + (max-min)*rel + 0.5)
+			fill.Size = UDim2.new(rel,0,1,0)
+			val.Text = tostring(v)
+			cb(v)
+		end
+		hit.InputBegan:Connect(function(i)
+			if i.UserInputType == Enum.UserInputType.MouseButton1 then dragging = true; fromX(i.Position.X) end
+		end)
+		keep(UIS.InputEnded:Connect(function(i)
+			if i.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end
+		end))
+		keep(UIS.InputChanged:Connect(function(i)
+			if dragging and i.UserInputType == Enum.UserInputType.MouseMovement then fromX(i.Position.X) end
+		end))
+		local function set(v, fire)
+			local rel = math.clamp((v-min)/(max-min), 0, 1)
+			fill.Size = UDim2.new(rel,0,1,0)
+			val.Text = tostring(v)
+			if fire ~= false then cb(v) end
+		end
+		refreshFns[#refreshFns+1] = function() fill.BackgroundColor3 = T.accent end
+		if path then reg(path, set) end
+	end
+
+	local function dropdown(c, text, options, default, cb, path)
+		local r = c.add(24)
+		local tl = new("TextLabel", {Size=UDim2.new(1,-140,1,0), BackgroundTransparency=1, Text=L(text),
+			Font=Enum.Font.Gotham, TextSize=12.5, TextColor3=T.text,
+			TextXAlignment=Enum.TextXAlignment.Left}, r)
+		regLang(function() tl.Text = L(text) end)
+		local btn = new("TextButton", {Size=UDim2.new(0,124,0,22), Position=UDim2.new(1,-124,0.5,-11),
+			BackgroundColor3=T.card2, BorderSizePixel=0, Text="", AutoButtonColor=false, ZIndex=3}, r)
+		new("UICorner", {CornerRadius=UDim.new(0,4)}, btn)
+		new("UIStroke", {Color=T.border, Thickness=1}, btn)
+		local lbl = new("TextLabel", {Size=UDim2.new(1,-20,1,0), Position=UDim2.new(0,8,0,0),
+			BackgroundTransparency=1, Text=tostring(default), Font=Enum.Font.Gotham, TextSize=12,
+			TextColor3=T.text, TextXAlignment=Enum.TextXAlignment.Left}, btn)
+		new("TextLabel", {Size=UDim2.new(0,14,1,0), Position=UDim2.new(1,-18,0,0),
+			BackgroundTransparency=1, Text="v", Font=Enum.Font.GothamBold, TextSize=10,
+			TextColor3=T.sub}, btn)
+		local list
+		local function close() if list then list:Destroy(); list = nil end end
+		local function open()
+			list = new("Frame", {Size=UDim2.new(1,0,0, #options*24 + 8),
+				Position=UDim2.new(0,0,0, c.y + 4), BackgroundColor3=T.card2, BorderSizePixel=0,
+				ZIndex=5}, c.holder)
+			new("UICorner", {CornerRadius=UDim.new(0,6)}, list)
+			new("UIStroke", {Color=T.border, Thickness=1}, list)
+			for i, o in ipairs(options) do
+				local ob = new("TextButton", {Size=UDim2.new(1,-8,0,22), Position=UDim2.new(0,4,0,4+(i-1)*24),
+					BackgroundTransparency=1, Text="  "..o, Font=Enum.Font.Gotham, TextSize=12,
+					TextColor3=T.text, TextXAlignment=Enum.TextXAlignment.Left, ZIndex=6}, list)
+				ob.MouseButton1Click:Connect(function()
+					lbl.Text = o; cb(o); close()
+				end)
+			end
+		end
+		btn.MouseButton1Click:Connect(function() if list then close() else open() end end)
+		local function set(v, fire)
+			lbl.Text = tostring(v)
+			if fire ~= false then cb(v) end
+		end
+		if path then reg(path, set) end
+		return set
+	end
+
+	local function keybind(c, text, default, cb, path)
+		local r = c.add(24)
+		local tl = new("TextLabel", {Size=UDim2.new(1,-110,1,0), BackgroundTransparency=1, Text=L(text),
+			Font=Enum.Font.Gotham, TextSize=12.5, TextColor3=T.text,
+			TextXAlignment=Enum.TextXAlignment.Left}, r)
+		regLang(function() tl.Text = L(text) end)
+		local btn = new("TextButton", {Size=UDim2.new(0,96,0,22), Position=UDim2.new(1,-96,0.5,-11),
+			BackgroundColor3=T.card2, BorderSizePixel=0, Text=keyName(default),
+			Font=Enum.Font.GothamMedium, TextSize=12, TextColor3=T.text, AutoButtonColor=false, ZIndex=3}, r)
+		new("UICorner", {CornerRadius=UDim.new(0,4)}, btn)
+		new("UIStroke", {Color=T.border, Thickness=1}, btn)
+		local listening, cd = false, 0
+		btn.MouseButton1Click:Connect(function()
+			listening = true; kbListening = true; cd = os.clock() + 0.25; btn.Text = "..."
+			task.delay(4, function() if listening then listening = false; kbListening = false end end)
+		end)
+		keep(UIS.InputBegan:Connect(function(input)
+			if not listening or os.clock() < cd then return end
+			if input.KeyCode == Enum.KeyCode.Escape then
+				listening = false; kbListening = false
+			elseif input.KeyCode ~= Enum.KeyCode.Unknown then
+				listening = false; kbListening = false
+				btn.Text = keyName(input.KeyCode); cb(input.KeyCode)
+			elseif input.UserInputType == Enum.UserInputType.MouseButton1
+				or input.UserInputType == Enum.UserInputType.MouseButton2 then
+				listening = false; kbListening = false
+				btn.Text = keyName(input.UserInputType); cb(input.UserInputType)
+			end
+		end))
+		if path then reg(path, function(v, fire) btn.Text = keyName(v); if fire ~= false then cb(v) end end) end
+	end
+
+	local function button(c, text, cb)
+		local b = new("TextButton", {Size=UDim2.new(1,-20,0,24), Position=UDim2.new(0,10,0,c.y),
+			BorderSizePixel=0, Text=L(text), Font=Enum.Font.GothamMedium,
+			TextSize=12, TextColor3=Color3.new(1,1,1), ZIndex=3}, c.holder)
+		accent(b, "BackgroundColor3")
+		new("UICorner", {CornerRadius=UDim.new(0,5)}, b)
+		regLang(function() b.Text = L(text) end)
+		c.y = c.y + 28
+		c.holder.Size = UDim2.new(1,0,0,c.y + 6)
+		b.MouseButton1Click:Connect(cb)
+		return b
+	end
+
+	local function note(c, text, h)
+		local l = new("TextLabel", {Size=UDim2.new(1,-20,0,h), Position=UDim2.new(0,10,0,c.y),
+			BackgroundTransparency=1, Text=L(text), Font=Enum.Font.Gotham, TextSize=11,
+			TextColor3=T.sub, TextWrapped=true, TextXAlignment=Enum.TextXAlignment.Left}, c.holder)
+		regLang(function() l.Text = L(text) end)
+		c.y = c.y + h + 4
+		c.holder.Size = UDim2.new(1,0,0,c.y + 6)
+		return l
+	end
+
+	local function textbox(c, text, default, cb)
+		local r = c.add(24)
+		local tl = new("TextLabel", {Size=UDim2.new(1,-140,1,0), BackgroundTransparency=1, Text=L(text),
+			Font=Enum.Font.Gotham, TextSize=12.5, TextColor3=T.text,
+			TextXAlignment=Enum.TextXAlignment.Left}, r)
+		regLang(function() tl.Text = L(text) end)
+		local box = new("TextBox", {Size=UDim2.new(0,124,0,22), Position=UDim2.new(1,-124,0.5,-11),
+			BackgroundColor3=T.card2, BorderSizePixel=0, Text=default, Font=Enum.Font.Gotham,
+			TextSize=12, TextColor3=T.text, ClearTextOnFocus=false, ZIndex=3}, r)
+		new("UICorner", {CornerRadius=UDim.new(0,4)}, box)
+		new("UIStroke", {Color=T.border, Thickness=1}, box)
+		box.FocusLost:Connect(function() cb(box.Text) end)
+		return box
+	end
+
+	-- ============ PAGES ============
+	local cats = {
+		{name="Aimbot", icon="+", tabs={}},
+		{name="Visuals", icon="*", tabs={}},
+		{name="Themes", icon="%", tabs={}},
+		{name="Misc", icon="-", tabs={}},
+		{name="Configs", icon="=", tabs={}},
+		{name="Langue", icon="~", tabs={}},
+	}
+	local SECTIONS = {
+		{id="COMBAT", cats={1}},
+		{id="VISUELS", cats={2,3}},
+		{id="JEU", cats={4}},
+		{id="SYSTEME", cats={5,6}},
+	}
+
+	local pA1 = page()
+	local cA = card(pA1, "Aimbot", function(v) S.aim.on = v end, false)
+	keybind(cA, "Touche", Enum.UserInputType.MouseButton2, function(v) S.aim.key = v end, {"aim","key"})
+	toggle(cA, "Maintien de la touche", true, function(v) S.aim.hold = v end, {"aim","hold"})
+	dropdown(cA, "Mode de visee", {"Mouse","Camera"}, "Mouse", function(v) S.aim.mode = v end, {"aim","mode"})
+	dropdown(cA, "Partie visee", {"Head","UpperTorso","LowerTorso","HumanoidRootPart"}, "Head",
+		function(v) S.aim.part = v end, {"aim","part"})
+	slider(cA, "FOV", 20, 500, 130, function(v) S.aim.fov = v end, {"aim","fov"})
+	slider(cA, "Lissage", 1, 10, 3, function(v) S.aim.smooth = v end, {"aim","smooth"})
+	toggle(cA, "Cercle FOV", true, function(v) S.aim.circle = v end, {"aim","circle"})
+
+	local cA1b = card(pA1, "Hitchance")
+	toggle(cA1b, "Activer le hitchance", false, function(v) S.aim.hitchance = v end, {"aim","hitchance"})
+	slider(cA1b, "Chance de lock (%)", 1, 100, 70, function(v) S.aim.hitchanceVal = v end, {"aim","hitchanceVal"})
+
+	local cA1c = card(pA1, "Comportement")
+	toggle(cA1c, "Ne pas lock a travers les murs", true, function(v) S.aim.wall = v end, {"aim","wall"})
+	toggle(cA1c, "Tir aleatoire sur le corps", false, function(v) S.aim.randomPart = v end, {"aim","randomPart"})
+	toggle(cA1c, "Ignorer les coequipiers", true, function(v) S.aim.team = v end, {"aim","team"})
+	slider(cA1c, "Distance max (0 = illimite)", 0, 1500, 0, function(v) S.aim.maxDist = v end, {"aim","maxDist"})
+
+	local cA1d = card(pA1, "Stream Proof")
+	toggle(cA1d, "Stream Proof", false, function(v) setStreamProof(v) end, {"misc","streamproof"})
+	keybind(cA1d, "Touche Stream Proof", Enum.KeyCode.K, function(v) S.misc.streamproofKey = v end, {"misc","streamproofKey"})
+	note(cA1d, "Cache TOUT le cheat (menu, ESP, chams, minimap, watermark, cercle FOV). Appuie sur la touche pour l'activer sans ouvrir le menu.", 40)
+
+	local pA2 = page()
+	local cA2 = card(pA2, "Silent Aim", function(v) S.silent.on = v end, false)
+	dropdown(cA2, "Partie visee", {"Head","UpperTorso","LowerTorso","HumanoidRootPart"}, "Head",
+		function(v) S.silent.part = v end, {"silent","part"})
+	slider(cA2, "FOV", 20, 500, 130, function(v) S.silent.fov = v end, {"silent","fov"})
+	slider(cA2, "Chance de toucher (%)", 1, 100, 100, function(v) S.silent.chance = v end, {"silent","chance"})
+	slider(cA2, "Distance max (0 = illimite)", 0, 1500, 0, function(v) S.silent.maxDist = v end, {"silent","maxDist"})
+	toggle(cA2, "Ne pas lock a travers les murs", true, function(v) S.silent.wall = v end, {"silent","wall"})
+	toggle(cA2, "Tir aleatoire sur le corps", false, function(v) S.silent.randomPart = v end, {"silent","randomPart"})
+	toggle(cA2, "Ignorer les coequipiers", true, function(v) S.silent.team = v end, {"silent","team"})
+	toggle(cA2, "Hook Workspace:Raycast", true, function(v) S.silent.hookRay = v end, {"silent","hookRay"})
+	toggle(cA2, "Hook ScreenPointToRay", false, function(v) S.silent.hookSPR = v end, {"silent","hookSPR"})
+
+	local pV1 = page()
+	local cV = card(pV1, "Joueurs", function(v) S.esp.on = v end, false)
+	toggle(cV, "Boites", true, function(v) S.esp.box = v end, {"esp","box"})
+	toggle(cV, "Noms", true, function(v) S.esp.name = v end, {"esp","name"})
+	toggle(cV, "Distance", true, function(v) S.esp.dist = v end, {"esp","dist"})
+	toggle(cV, "Barre de vie", true, function(v) S.esp.hp = v end, {"esp","hp"})
+	toggle(cV, "Lignes (tracers)", true, function(v) S.esp.tracer = v end, {"esp","tracer"})
+	toggle(cV, "Chams (Highlight)", true, function(v) S.esp.cham = v end, {"esp","cham"})
+	toggle(cV, "Point sur la tete", false, function(v) S.esp.dot = v end, {"esp","dot"})
+	toggle(cV, "Couleur selon la vie", true, function(v) S.esp.healthCol = v end, {"esp","healthCol"})
+	toggle(cV, "Ignorer les coequipiers", false, function(v) S.esp.team = v end, {"esp","team"})
+	slider(cV, "Distance max", 100, 5000, 1500, function(v) S.esp.max = v end, {"esp","max"})
+	slider(cV, "Taille du texte", 9, 20, 13, function(v) S.esp.textSize = v end, {"esp","textSize"})
+	slider(cV, "Transparence chams", 0, 1, 0.65, function(v) S.esp.chamTrans = v end, {"esp","chamTrans"})
+	dropdown(cV, "Couleur ESP", {"Green","Blue","Red","Yellow","White","Purple"}, "Green",
+		function(v) S.esp.col = v end, {"esp","col"})
+
+	local cV2 = card(pV1, "Squelette", function(v) S.esp.skeleton = v end, false)
+	slider(cV2, "Epaisseur du squelette", 1, 4, 1, function(v) S.esp.boneThick = v end, {"esp","boneThick"})
+
+	local cV3 = card(pV1, "Mini-map", function(v) S.esp.minimap = v; buildMini() end, false)
+	slider(cV3, "Taille", 100, 260, 160, function(v) S.esp.minimapSize = v; buildMini() end, {"esp","minimapSize"})
+	slider(cV3, "Zoom (studs affiches)", 50, 1200, 400, function(v) S.esp.minimapZoom = v end, {"esp","minimapZoom"})
+
+	local cV4 = card(pV1, "Alerte viseur", function(v) S.misc.aimWarn = v end, false)
+	slider(cV4, "Distance d'alerte", 50, 600, 250, function(v) S.misc.warnDist = v end, {"misc","warnDist"})
+	slider(cV4, "Angle d'alerte (degres)", 5, 60, 25, function(v) S.misc.warnAngle = v end, {"misc","warnAngle"})
+
+	local pV2 = page()
+	local cW = card(pV2, "Monde", function(v) S.world.bright = v; applyWorld() end, false)
+	slider(cW, "Heure", 0, 24, 14, function(v) S.world.clock = v; applyWorld() end, {"world","clock"})
+	toggle(cW, "Desactiver le brouillard", false, function(v) S.world.fog = v; applyWorld() end, {"world","fog"})
+	toggle(cW, "Desactiver les ombres", false, function(v) S.world.shadows = v; applyWorld() end, {"world","shadows"})
+
+	local cW2 = card(pV2, "Camera")
+	slider(cW2, "FOV camera", 50, 120, 70, function(v)
+		S.cam.fov = v; if Camera then Camera.FieldOfView = v end
+	end, {"cam","fov"})
+	toggle(cW2, "Troisieme personne", false, function(v)
+		S.cam.third = v
+		LP.CameraMode = v and Enum.CameraMode.Classic or Enum.CameraMode.LockFirstPerson
+		LP.CameraMaxZoomDistance = v and 20 or 0.5
+	end, {"cam","third"})
+
+	local pT = page()
+	local cT = card(pT, "Themes")
+	ddColor = dropdown(cT, "Couleur du menu", COLOR_NAMES, "Rouge", function(v) applyMenuColor(v) end, {"theme","color"})
+	ddEffect = dropdown(cT, "Effet de particules", EFFECT_NAMES, "Aucun", function(v) applyEffect(v) end, {"theme","effect"})
+	slider(cT, "Densite des particules", 0, 120, 35, function(v) S.theme.density = v; queueRebuild() end, {"theme","density"})
+
+	local cT2 = card(pT, "Themes rapides")
+	note(cT2, "Neige : petits points blancs qui tombent lentement.  Sakura : petales roses.  Pluie, Feuilles, Cendres, Etoiles, Or, Coeurs.", 44)
+	button(cT2, "Sakura", function() applyTheme("Sakura") end)
+	button(cT2, "Snow", function() applyTheme("Snow") end)
+	button(cT2, "Pluie", function() applyTheme("Pluie") end)
+	button(cT2, "Foret", function() applyTheme("Foret") end)
+	button(cT2, "Nuit etoilee", function() applyTheme("Nuit") end)
+	button(cT2, "Or", function() applyTheme("Or") end)
+
+	local pM1 = page()
+	local cM = card(pM1, "Deplacements")
+	toggle(cM, "Fly (WASD/Space/Ctrl)", false, function(v) setFly(v) end, {"mov","fly"})
+	slider(cM, "Vitesse de vol", 10, 300, 80, function(v) S.mov.flyspd = v end, {"mov","flyspd"})
+	toggle(cM, "Noclip", false, function(v)
+		S.mov.noclip = v
+		if not v then
+			local char = LP.Character
+			if char then for _, p in ipairs(char:GetDescendants()) do
+				if p:IsA("BasePart") then p.CanCollide = true end
+			end end
+		end
+	end, {"mov","noclip"})
+	toggle(cM, "Speed hack", false, function(v) S.mov.spd = v end, {"mov","spd"})
+	slider(cM, "Vitesse", 16, 250, 40, function(v) S.mov.speed = v end, {"mov","speed"})
+	toggle(cM, "Jump hack", false, function(v) S.mov.jmp = v end, {"mov","jmp"})
+	slider(cM, "Puissance de saut", 50, 300, 60, function(v) S.mov.jump = v end, {"mov","jump"})
+	toggle(cM, "Saut infini", false, function(v) S.mov.infjump = v end, {"mov","infjump"})
+	toggle(cM, "Hitbox expander", false, function(v)
+		S.mov.hb = v
+		if not v then
+			local char = LP.Character
+			local hrp = char and char:FindFirstChild("HumanoidRootPart")
+			if hrp then hrp.Size = Vector3.new(2,2,1) end
+		end
+	end, {"mov","hb"})
+	slider(cM, "Taille hitbox", 3, 15, 7, function(v) S.mov.hbsize = v end, {"mov","hbsize"})
+
+	local cM2 = card(pM1, "Teleportation")
+	button(cM2, "TP -> joueur le plus proche", tpNearest)
+	button(cM2, "TP -> curseur", tpCursor)
+
+	local pM2 = page()
+	local cX = card(pM2, "Menu")
+	keybind(cX, "Touche du menu", Enum.KeyCode.Insert, function(v) S.misc.menuKey = v end, {"misc","menuKey"})
+	toggle(cX, "Watermark", true, function(v) S.misc.watermark = v; if wm then wm.Visible = v end end, {"misc","watermark"})
+	toggle(cX, "Anti-AFK", true, function(v) S.misc.antiafk = v end, {"misc","antiafk"})
+	button(cX, "Reset personnage", function() LP:LoadCharacter() end)
+	button(cX, "Rejoindre le serveur", function()
+		game:GetService("TeleportService"):Teleport(game.PlaceId, LP)
+	end)
+
+	local cX2 = card(pM2, "Decharger")
+	button(cX2, "Decharger le cheat", function()
+		running = false
+		for _, c in ipairs(conns) do pcall(function() c:Disconnect() end) end
+		for plr in pairs(espCache) do delESP(plr) end
+		if fovCircle then pcall(function() fovCircle:Remove() end) end
+		if flyBV then flyBV:Destroy() end
+		if gui then gui:Destroy() end
+		if hud then hud:Destroy() end
+		getgenv().VERSACE = nil
+	end)
+
+	local pC = page()
+	local cC = card(pC, "Sauvegarde")
+	local cfgName = textbox(cC, "Nom du fichier", "default", function() end)
+	button(cC, "Sauvegarder", function()
+		pcall(function()
+			if not isfolder("versace") then makefolder("versace") end
+			writefile("versace/"..cfgName.Text..".json", encode())
+			print("[VERSACE] config sauvegardee")
+		end)
+	end)
+	button(cC, "Charger", function()
+		pcall(function()
+			local f = "versace/"..cfgName.Text..".json"
+			if isfile(f) then decode(readfile(f)); print("[VERSACE] config chargee")
+			else print("[VERSACE] config introuvable") end
+		end)
+	end)
+	button(cC, "Supprimer toutes les configs", function()
+		pcall(function()
+			for _, f in ipairs(listfiles("versace")) do
+				if f:match("%.json$") then delfile(f) end
+			end
+		end)
+	end)
+
+	-- ===== LANGUE =====
+	local pL = page()
+	local cL = card(pL, "Langue")
+	local langNames = {"Français","Español","English","Русский"}
+	local langCur = "Français"
+	for nm, code in pairs(LANGS) do if code == S.lang then langCur = nm end end
+	dropdown(cL, "Langue du cheat", langNames, langCur, function(o)
+		S.lang = LANGS[o] or "fr"
+		applyLang()
+	end, {"lang"})
+	note(cL, "Le changement est instantane.", 16)
+
+	cats[1].tabs = {{name="Aimbot", pg=pA1}, {name="Silent Aim", pg=pA2}}
+	cats[2].tabs = {{name="Joueurs", pg=pV1}, {name="Monde", pg=pV2}}
+	cats[3].tabs = {{name="Themes", pg=pT}}
+	cats[4].tabs = {{name="Deplacements", pg=pM1}, {name="Menu", pg=pM2}}
+	cats[5].tabs = {{name="Config", pg=pC}}
+	cats[6].tabs = {{name="Langue", pg=pL}}
+
+	local function selectTab(ci, ti)
+		for i, tbl in pairs(pages) do
+			for j, pgn in pairs(tbl) do
+				pgn.sf.Visible = (i == ci and j == ti)
+			end
+		end
+		for i, b in ipairs(tabBtns) do
+			b.TextColor3 = (i == ti) and T.text or T.sub
+			b.BackgroundTransparency = (i == ti) and 0 or 1
+		end
+	end
+
+	local function selectCat(ci)
+		currentCat = ci
+		for _, b in ipairs(navHolder:GetChildren()) do
+			if b:IsA("TextButton") then
+				local on = (b:GetAttribute("cat") == ci)
+				b.BackgroundTransparency = on and 0 or 1
+				for _, ch in ipairs(b:GetChildren()) do
+					if ch:IsA("TextLabel") then ch.TextColor3 = on and T.text or T.sub end
+					if ch:IsA("Frame") then ch.BackgroundTransparency = on and 0 or 1 end
+				end
+			end
+		end
+		for _, ch in ipairs(tabBar:GetChildren()) do
+			if ch:IsA("TextButton") then ch:Destroy() end
+		end
+		tabBtns = {}
+		for i, tab in ipairs(cats[ci].tabs) do
+			local b = new("TextButton", {Size=UDim2.fromOffset(34 + #tab.name*7, 26),
+				BackgroundColor3=T.card, BackgroundTransparency=1, BorderSizePixel=0, Text=L(tab.name),
+				Font=Enum.Font.GothamMedium, TextSize=12, TextColor3=T.sub, AutoButtonColor=false,
+				ZIndex=2, LayoutOrder=i}, tabBar)
+			new("UICorner", {CornerRadius=UDim.new(0,6)}, b)
+			b.MouseButton1Click:Connect(function() selectTab(ci, i) end)
+			tabBtns[i] = b
+		end
+		selectTab(ci, 1)
+	end
+
+	for ci, cat in ipairs(cats) do
+		pages[ci] = {}
+		for ti, tab in ipairs(cat.tabs) do pages[ci][ti] = tab.pg end
+	end
+
+	local order = 0
+	for _, sec in ipairs(SECTIONS) do
+		order = order + 1
+		local hd = new("TextLabel", {Size=UDim2.new(1,0,0,18), BackgroundTransparency=1,
+			Text=string.upper(L(sec.id)), Font=Enum.Font.GothamBold, TextSize=9,
+			TextColor3=T.sub, TextXAlignment=Enum.TextXAlignment.Left, LayoutOrder=order}, navHolder)
+		new("UIPadding", {PaddingLeft=UDim.new(0,6)}, hd)
+		regLang(function() hd.Text = string.upper(L(sec.id)) end)
+		for _, ci in ipairs(sec.cats) do
+			order = order + 1
+			local cat = cats[ci]
+			local b = new("TextButton", {Size=UDim2.new(1,0,0,30), BackgroundColor3=T.card,
+				BackgroundTransparency=1, BorderSizePixel=0, Text="", AutoButtonColor=false,
+				LayoutOrder=order, ZIndex=2}, navHolder)
+			new("UICorner", {CornerRadius=UDim.new(0,6)}, b)
+			b:SetAttribute("cat", ci)
+			accent(new("Frame", {Size=UDim2.new(0,2,0,16), Position=UDim2.new(0,0,0.5,-8),
+				BorderSizePixel=0, BackgroundTransparency=1}, b), "BackgroundColor3")
+			new("TextLabel", {Size=UDim2.new(0,18,1,0), Position=UDim2.new(0,10,0,0),
+				BackgroundTransparency=1, Text=cat.icon, Font=Enum.Font.GothamBold, TextSize=13,
+				TextColor3=T.sub}, b)
+			local nl = new("TextLabel", {Size=UDim2.new(1,-34,1,0), Position=UDim2.new(0,32,0,0),
+				BackgroundTransparency=1, Text=L(cat.name), Font=Enum.Font.GothamMedium, TextSize=13,
+				TextColor3=T.sub, TextXAlignment=Enum.TextXAlignment.Left}, b)
+			catLabelRefs[ci] = nl
+			regLang(function() nl.Text = L(cat.name) end)
+			b.MouseButton1Click:Connect(function() selectCat(ci) end)
+		end
+	end
+
+	langRefreshHook = function()
+		for ci, nl in pairs(catLabelRefs) do
+			if nl and nl.Parent then nl.Text = L(cats[ci].name) end
+		end
+		selectCat(currentCat)
+	end
+
+	selectCat(1)
+end
+
+--// BUILD
+local ok, err = pcall(build)
+if not ok then
+	warn("[VERSACE] ERREUR : "..tostring(err))
+	local lbl = new("TextLabel", {Size=UDim2.fromOffset(820,60), Position=UDim2.new(0.5,-410,0,60),
+		BackgroundColor3=Color3.fromRGB(120,20,20), TextColor3=Color3.new(1,1,1), TextSize=12,
+		TextWrapped=true, Text="ERREUR VERSACE : "..tostring(err), Font=Enum.Font.Code, Parent=gui})
+	new("UICorner", {CornerRadius=UDim.new(0,8)}, lbl)
+else
+	print("[VERSACE] UI OK")
+	applyMenuColor(S.theme.color)
+	buildParticles()
+	buildMini()
+	buildWarn()
+	applyLang()
+end
+
+--// ================= SYSTEME DE CLE =================
+local licensed = false
+local KEY_SECRET = "VERSACE_DJINNUHQ_2026_SECRET"
+local KEY_FILE = "versace_key.txt"
+local KEY_MOD = 4294967291
+
+local function keyHash(s)
+	local h = 0
+	for i = 1, #s do
+		local a1 = math.floor(h / 65536)
+		local a0 = h % 65536
+		h = (((a1 * 31) % KEY_MOD) * 65536 + a0 * 31 + string.byte(s, i)) % KEY_MOD
+	end
+	return h
+end
+local function keySig(typ, exp, nonce)
+	return string.upper(string.format("%08x", math.floor(keyHash(typ.."|"..exp.."|"..nonce.."|"..KEY_SECRET))))
+end
+local function parseKey(key)
+	key = string.upper(string.gsub(tostring(key), "%s", ""))
+	local p = {}
+	for seg in string.gmatch(key, "[^-]+") do p[#p+1] = seg end
+	if #p ~= 5 or p[1] ~= "VERSACE" then return nil, "format" end
+	local typ, exp, nonce, sig = p[2], p[3], p[4], p[5]
+	if keySig(typ, exp, nonce) ~= sig then return nil, "signature" end
+	local e = tonumber(exp)
+	if not e then return nil, "format" end
+	if typ ~= "LT" and e < os.time() then return nil, "expiree" end
+	return {typ = typ, exp = e}
+end
+
+local function unlock()
+	licensed = true
+	if gui then gui.Enabled = true end
+	if hud then hud.Enabled = true end
+	print("[VERSACE] cle valide - cheat active")
+end
+
+local function showKeyPrompt()
+	local pg = new("ScreenGui", {Name="VERSACE_KEY", IgnoreGuiInset=true, DisplayOrder=1002, Parent=guiParent})
+	local panel = new("Frame", {Size=UDim2.fromOffset(430,236), Position=UDim2.new(0.5,-215,0.5,-118),
+		BackgroundColor3=Color3.fromRGB(13,13,16), BorderSizePixel=0}, pg)
+	new("UICorner", {CornerRadius=UDim.new(0,12)}, panel)
+	new("UIStroke", {Color=Color3.fromRGB(240,60,65), Thickness=1}, panel)
+
+	new("TextLabel", {Size=UDim2.new(1,0,0,34), Position=UDim2.new(0,0,0,18), BackgroundTransparency=1,
+		Text="VERSACE", Font=Enum.Font.GothamBlack, TextSize=26,
+		TextColor3=Color3.fromRGB(240,60,65)}, panel)
+	new("TextLabel", {Size=UDim2.new(1,0,0,16), Position=UDim2.new(0,0,0,52), BackgroundTransparency=1,
+		Text="ENTRE TA KEY POUR CONTINUER", Font=Enum.Font.Gotham, TextSize=11,
+		TextColor3=Color3.fromRGB(140,140,150)}, panel)
+
+	local box = new("TextBox", {Size=UDim2.fromOffset(360,38), Position=UDim2.new(0.5,-180,0,84),
+		BackgroundColor3=Color3.fromRGB(24,24,29), BorderSizePixel=0, Text="",
+		PlaceholderText="VERSACE-XXXX-XXXX-XXXX-XXXXXXXX",
+		PlaceholderColor3=Color3.fromRGB(90,90,100),
+		Font=Enum.Font.Code, TextSize=13, TextColor3=Color3.fromRGB(233,233,240),
+		ClearTextOnFocus=false}, panel)
+	new("UICorner", {CornerRadius=UDim.new(0,6)}, box)
+	new("UIStroke", {Color=Color3.fromRGB(40,40,48), Thickness=1}, box)
+
+	local status = new("TextLabel", {Size=UDim2.new(1,0,0,18), Position=UDim2.new(0,0,0,130),
+		BackgroundTransparency=1, Text="En attente d'une cle...", Font=Enum.Font.GothamMedium,
+		TextSize=11, TextColor3=Color3.fromRGB(140,140,150)}, panel)
+
+	local vbtn = new("TextButton", {Size=UDim2.fromOffset(200,34), Position=UDim2.new(0.5,-100,0,158),
+		BackgroundColor3=Color3.fromRGB(240,60,65), BorderSizePixel=0, Text="VALIDER",
+		Font=Enum.Font.GothamBold, TextSize=13, TextColor3=Color3.new(1,1,1)}, panel)
+	new("UICorner", {CornerRadius=UDim.new(0,6)}, vbtn)
+
+	new("TextLabel", {Size=UDim2.new(1,0,0,14), Position=UDim2.new(0,0,1,-24), BackgroundTransparency=1,
+		Text="by djinnuhq", Font=Enum.Font.Gotham, TextSize=10,
+		TextColor3=Color3.fromRGB(90,90,100)}, panel)
+
+	local busy = false
+	local function try()
+		if busy then return end
+		local data, why = parseKey(box.Text)
+		if data then
+			busy = true
+			status.Text = "CLE VALIDE - CHARGEMENT..."
+			status.TextColor3 = Color3.fromRGB(80,220,120)
+			if writefile then
+				pcall(function() writefile(KEY_FILE, string.upper(string.gsub(box.Text, "%s", ""))) end)
+			end
+			task.wait(0.6)
+			pg:Destroy()
+			unlock()
+		else
+			status.Text = (why == "expiree") and "KEY EXPIREE" or "KEY INVALIDE"
+			status.TextColor3 = Color3.fromRGB(255,70,70)
+			box.Text = ""
+		end
+	end
+	vbtn.MouseButton1Click:Connect(try)
+	box.FocusLost:Connect(function(enter) if enter then try() end end)
+	box:CaptureFocus()
+end
+
+task.spawn(function()
+	while not loadingDone do task.wait(0.1) end
+	task.wait(0.35)
+
+	local saved = nil
+	if readfile and isfile then
+		pcall(function() if isfile(KEY_FILE) then saved = readfile(KEY_FILE) end end)
+	end
+	if saved and saved ~= "" then
+		local data = parseKey(saved)
+		if data then
+			unlock()
+			return
+		end
+	end
+	showKeyPrompt()
+end)
+
+--// LOOPS
+local frames, fps = 0, 0
+keep(RunService.RenderStepped:Connect(function(dt)
+	frames += 1
+	if os.clock() % 1 < dt then fps = frames; frames = 0 end
+	if not licensed then
+		for _, o in pairs(espCache) do
+			if o.cham then o.cham.Enabled = false end
+			if o.box then hideESP(o) end
+		end
+		if fovCircle then fovCircle.Visible = false end
+		return
+	end
+	if S.esp.on and not S.misc.streamproof then
+		renderESP()
+	else
+		for _, o in pairs(espCache) do
+			if o.cham then o.cham.Enabled = false end
+			if o.box then hideESP(o) end
+		end
+	end
+	if fovCircle then
+		fovCircle.Visible = S.aim.circle and S.aim.on and not S.misc.streamproof
+		if fovCircle.Visible then
+			fovCircle.Position = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)
+			fovCircle.Radius = S.aim.fov
+			fovCircle.Color = COLORS[S.aim.circleCol] or COLORS.Blue
+		end
+	end
+	if aimActive() then runAim() end
+	updateMini()
+end))
+
+task.spawn(function()
+	while running do
+		task.wait(0.15)
+		if licensed then updateWarn() end
+	end
+end)
+
+task.spawn(function()
+	while running do
+		task.wait(0.5)
+		if wm and licensed then
+			wm.Visible = S.misc.watermark and not S.misc.streamproof
+			wm.Text = "  VERSACE by djinnuhq  |  "..fps.." fps  |  "..math.floor(LP:GetNetworkPing()*1000).." ms"
+		end
+	end
+end)
+
+--// KEYBINDS
+keep(UIS.InputBegan:Connect(function(input, gp)
+	if (not kbListening) and licensed and keyMatch(input, S.misc.streamproofKey) then
+		setStreamProof(not S.misc.streamproof)
+		return
+	end
+	if (not kbListening) and licensed and keyMatch(input, S.misc.menuKey) then
+		if gui then gui.Enabled = not gui.Enabled end
+		if footHint then footHint.Text = keyName(S.misc.menuKey).." = "..L("menu") end
+		return
+	end
+	if gp or not licensed then return end
+	if keyMatch(input, S.aim.key) then
+		if S.aim.hold then aimHeld = true else S.aim.on = not S.aim.on end
+	elseif input.KeyCode == Enum.KeyCode.F then
+		setFly(not S.mov.fly)
+	elseif input.KeyCode == Enum.KeyCode.T then
+		tpNearest()
+	end
+end))
+keep(UIS.InputEnded:Connect(function(input)
+	if S.aim.hold and keyMatch(input, S.aim.key) then aimHeld = false end
+end))
+keep(LP.CharacterAdded:Connect(function()
+	task.wait(0.4)
+	if S.mov.fly then
+		local hum = LP.Character and LP.Character:FindFirstChildOfClass("Humanoid")
+		if hum then hum.PlatformStand = true end
+	end
+end))
+
+getgenv().VERSACE = {S = S}
+print("[VERSACE] charge | "..keyName(S.misc.menuKey).." = menu | by djinnuhq")
